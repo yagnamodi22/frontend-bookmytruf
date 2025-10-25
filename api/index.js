@@ -15,8 +15,8 @@ app.use(cors({
 // Parse JSON bodies
 app.use(express.json());
 
-// Get backend URL from environment variable
-const BACKEND_URL = process.env.BACKEND_URL || 'https://your-backend-url.com';
+// Use the deployed backend URL
+const BACKEND_URL = process.env.BACKEND_URL || 'https://book-by-truf-backend.onrender.com';
 
 // Proxy middleware function
 const proxyRequest = async (req, res) => {

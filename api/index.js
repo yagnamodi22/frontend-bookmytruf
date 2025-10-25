@@ -5,11 +5,12 @@ import axios from 'axios';
 
 const app = express();
 
-// Enable CORS
+// Enable CORS with proper configuration
 app.use(cors({
   origin: '*',
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
+  credentials: true
 }));
 
 // Parse JSON bodies
@@ -23,6 +24,11 @@ const proxyRequest = async (req, res) => {
   try {
     const { method, url, headers, body } = req;
     
+    // Special handling for admin login
+    if (url.includes('/auth/login') && body && (body.email || '').includes('admin')) {
+      console.log('Admin login detected, ensuring proper request format');
+    }
+    
     // Forward the request to the backend
     const response = await axios({
       method,
@@ -30,6 +36,7 @@ const proxyRequest = async (req, res) => {
       headers: {
         ...headers,
         host: new URL(BACKEND_URL).host,
+        'Content-Type': 'application/json',
       },
       data: body,
       validateStatus: () => true,
@@ -39,6 +46,13 @@ const proxyRequest = async (req, res) => {
     res.status(response.status).json(response.data);
   } catch (error) {
     console.error('Proxy error:', error);
+    // Provide more helpful error message for 405 errors
+    if (error.response && error.response.status === 405) {
+      return res.status(400).json({ 
+        error: 'Login method not supported. Please try again later.',
+        details: 'The server does not support this request method for the login endpoint.'
+      });
+    }
     res.status(500).json({ error: 'Internal Server Error' });
   }
 };

@@ -23,21 +23,43 @@ const AdminLogin = ({ setIsAdminLoggedIn, setAdmin }) => {
     setLoading(true);
     try {
       console.log('Admin login attempt with:', formData);
-      const data = await authService.login({ email: formData.email, password: formData.password });
+      
+      // Direct API call to avoid proxy issues
+      const response = await fetch('https://book-by-truf-backend.onrender.com/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Login failed with status: ${response.status}`);
+      }
+      
+      const data = await response.json();
       console.log('Admin login response:', data);
+      
       const role = (data.role || '').toLowerCase();
       console.log('Admin role:', role);
+      
       if (role !== 'admin') {
         console.error('Admin login failed: role is', role, 'expected admin');
         setError('Access denied: not an admin account');
+        authService.logout(); // Clear any token if not admin
         return;
       }
+      
+      // Store token and user data
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data));
+      
       setAdmin(data);
       setIsAdminLoggedIn(true);
       navigate('/admin/dashboard');
     } catch (err) {
       console.error('Admin login error:', err);
-      setError(err?.response?.data || 'Login failed');
+      setError('Login failed. Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }

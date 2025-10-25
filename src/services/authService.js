@@ -40,6 +40,16 @@ export const authService = {
     }
     return response.data;
   },
+  
+  adminLogin: async (credentials) => {
+    const response = await api.post('/auth/admin/login', credentials);
+    if (response.data.token) {
+      const storedUser = { ...response.data, role: (response.data.role || '').toLowerCase() };
+      localStorage.setItem('token', response.data.token);
+      localStorage.setItem('user', JSON.stringify(storedUser));
+    }
+    return response.data;
+  },
 
   logout: () => {
     localStorage.removeItem('token');

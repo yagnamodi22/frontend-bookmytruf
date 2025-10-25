@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // Use environment variable for API URL with fallback
-const BASE_URL = import.meta.env.VITE_API_URL || '/api';
+const API_BASE = import.meta.env.NEXT_PUBLIC_API_BASE_URL || 'https://book-by-truf-backend.onrender.com';
+const BASE_URL = `${API_BASE}/api`;
 
 const api = axios.create({
   baseURL: BASE_URL,

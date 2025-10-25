@@ -7,7 +7,7 @@ const app = express();
 
 // Enable CORS with proper configuration
 app.use(cors({
-  origin: '*',
+  origin: 'https://frontend-bookmytruf.vercel.app',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
   credentials: true

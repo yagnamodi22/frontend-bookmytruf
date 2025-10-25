@@ -24,16 +24,23 @@ const AdminLogin = ({ setIsAdminLoggedIn, setAdmin }) => {
     try {
       console.log('Admin login attempt with:', formData);
       
-      // Direct API call to avoid proxy issues
+      // Direct API call with explicit CORS headers
       const response = await fetch('https://book-by-truf-backend.onrender.com/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Origin': window.location.origin
         },
+        credentials: 'include',
         body: JSON.stringify({ email: formData.email, password: formData.password }),
       });
       
+      console.log('Login response status:', response.status);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
         throw new Error(`Login failed with status: ${response.status}`);
       }
       

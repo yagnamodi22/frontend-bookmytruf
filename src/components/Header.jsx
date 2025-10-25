@@ -1,0 +1,267 @@
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Menu, X, User, LogOut } from 'lucide-react';
+import { siteSettingsService } from '../services/siteSettingsService';
+
+const Header = ({ 
+  isLoggedIn, 
+  user, 
+  setIsLoggedIn, 
+  isAdminLoggedIn, 
+  admin, 
+  setIsAdminLoggedIn,
+  isOwnerLoggedIn,
+  owner,
+  setIsOwnerLoggedIn
+}) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = (userType = 'customer') => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } catch {}
+
+    if (userType === 'admin') {
+      setIsAdminLoggedIn(false);
+    } else if (userType === 'owner') {
+      setIsOwnerLoggedIn(false);
+    } else {
+      setIsLoggedIn(false);
+    }
+    setIsMenuOpen(false);
+    navigate('/');
+  };
+
+  const getCurrentUser = () => {
+    if (isAdminLoggedIn) return { type: 'admin', data: admin };
+    if (isOwnerLoggedIn) return { type: 'owner', data: owner };
+    if (isLoggedIn) return { type: 'customer', data: user };
+    return null;
+  };
+
+  const currentUser = getCurrentUser();
+  const [settings, setSettings] = useState({});
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const map = await siteSettingsService.getMap();
+        setSettings(map || {});
+      } catch {}
+    };
+    load();
+    const handler = () => load();
+    window.addEventListener('site-settings-updated', handler);
+    return () => window.removeEventListener('site-settings-updated', handler);
+  }, []);
+
+  return (
+    <header className="bg-white shadow-lg sticky top-0 z-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center py-4">
+          <Link to="/" className="flex items-center space-x-2">
+            {settings.logo_url ? (
+              <img src={settings.logo_url} alt="Logo" className="w-10 h-10 rounded-lg object-cover" />
+            ) : (
+              <div className="w-10 h-10 bg-green-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">BT</span>
+              </div>
+            )}
+            <span className="text-2xl font-bold text-gray-900">{settings.site_name || 'BookMyTurf'}</span>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex space-x-8">
+            <Link 
+              to="/" 
+              className={`font-medium transition-colors duration-200 ${
+                location.pathname === '/' ? 'text-green-600' : 'text-gray-700 hover:text-green-600'
+              }`}
+            >
+              Home
+            </Link>
+            <Link 
+              to="/turfs" 
+              className={`font-medium transition-colors duration-200 ${
+                location.pathname === '/turfs' ? 'text-green-600' : 'text-gray-700 hover:text-green-600'
+              }`}
+            >
+              Turfs
+            </Link>
+            <Link 
+              to="/about" 
+              className={`font-medium transition-colors duration-200 ${
+                location.pathname === '/about' ? 'text-green-600' : 'text-gray-700 hover:text-green-600'
+              }`}
+            >
+              About
+            </Link>
+            <Link 
+              to="/contact" 
+              className={`font-medium transition-colors duration-200 ${
+                location.pathname === '/contact' ? 'text-green-600' : 'text-gray-700 hover:text-green-600'
+              }`}
+            >
+              Contact
+            </Link>
+          </nav>
+
+          {/* Desktop Auth */}
+          <div className="hidden md:flex items-center space-x-4">
+            {currentUser ? (
+              <div className="flex items-center space-x-4">
+                {currentUser.type === 'admin' && (
+                  <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
+                    Admin
+                  </span>
+                )}
+                {currentUser.type === 'owner' && (
+                  <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
+                    Turf Owner
+                  </span>
+                )}
+                <Link
+                  to={
+                    currentUser.type === 'admin' 
+                      ? '/admin/dashboard' 
+                      : currentUser.type === 'owner'
+                      ? '/turf-owner/dashboard'
+                      : '/dashboard'
+                  }
+                  className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-green-600 transition-colors duration-200"
+                >
+                  <User className="w-5 h-5" />
+                  <span>Dashboard</span>
+                </Link>
+                <button
+                  onClick={() => handleLogout(currentUser.type)}
+                  className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-red-600 transition-colors duration-200"
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Logout</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-3">
+                <Link
+                  to="/login"
+                  className="text-gray-700 hover:text-green-600 transition-colors duration-200"
+                >
+                  Customer Login
+                </Link>
+                <Link
+                  to="/turf-owner/login"
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200"
+                >
+                  Turf Owner
+                </Link>
+                <Link
+                  to="/admin/login"
+                  className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors duration-200"
+                >
+                  Admin
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Mobile menu button */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden p-2 rounded-md text-gray-700 hover:text-green-600 focus:outline-none"
+          >
+            {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
+
+        {/* Mobile Navigation */}
+        {isMenuOpen && (
+          <div className="md:hidden py-4 border-t border-gray-200">
+            <div className="space-y-4">
+              <Link 
+                to="/" 
+                className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Home
+              </Link>
+              <Link 
+                to="/turfs" 
+                className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Turfs
+              </Link>
+              <Link 
+                to="/about" 
+                className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                About
+              </Link>
+              <Link 
+                to="/contact" 
+                className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Contact
+              </Link>
+              {currentUser ? (
+                <>
+                  <Link
+                    to={
+                      currentUser.type === 'admin' 
+                        ? '/admin/dashboard' 
+                        : currentUser.type === 'owner'
+                        ? '/turf-owner/dashboard'
+                        : '/dashboard'
+                    }
+                    className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={() => handleLogout(currentUser.type)}
+                    className="block w-full text-left px-4 py-2 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-md"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <div className="space-y-2">
+                  <Link
+                    to="/login"
+                    className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Customer Login
+                  </Link>
+                  <Link
+                    to="/turf-owner/login"
+                    className="block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Turf Owner
+                  </Link>
+                  <Link
+                    to="/admin/login"
+                    className="block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Admin
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+};
+
+export default Header;

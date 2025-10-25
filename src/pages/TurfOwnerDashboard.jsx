@@ -1,0 +1,931 @@
+import React, { useEffect, useState } from 'react';
+import { 
+  Plus, 
+  MapPin, 
+  Clock, 
+  XCircle, 
+  Eye,
+  Edit,
+  Calendar,
+  DollarSign,
+  Users,
+  Star,
+  User
+} from 'lucide-react';
+import { turfService } from '../services/turfService';
+import { bookingService } from '../services/bookingService';
+import { authService } from '../services/authService';
+import PersonalDetailsModal from '../components/PersonalDetailsModal';
+import TurfDetailsModal from '../components/TurfDetailsModal';
+
+const TurfOwnerDashboard = () => {
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showAddTurfForm, setShowAddTurfForm] = useState(false);
+  const [showPersonalDetailsModal, setShowPersonalDetailsModal] = useState(false);
+  const [formData, setFormData] = useState({
+    turfName: '',
+    location: '',
+    description: '',
+    price: '',
+    sports: [],
+    amenities: [],
+    images: []
+  });
+  const [selectedImages, setSelectedImages] = useState([]);
+  const [imagePreviews, setImagePreviews] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const [myTurfs, setMyTurfs] = useState([]);
+  const [selectedTurfId, setSelectedTurfId] = useState('');
+  const [viewTurfId, setViewTurfId] = useState(null);
+  const [showTurfDetailsModal, setShowTurfDetailsModal] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingTurfId, setEditingTurfId] = useState(null);
+  const [existingImagesString, setExistingImagesString] = useState('');
+  const [turfBookings, setTurfBookings] = useState([]);
+  const [loadingBookings, setLoadingBookings] = useState(false);
+  const [userProfile, setUserProfile] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: ''
+  });
+
+  const sportsOptions = ['Football', 'Cricket', 'Basketball', 'Tennis', 'Badminton', 'Volleyball'];
+  const amenitiesOptions = [
+    'Parking', 'Restrooms', 'Floodlights', 'Changing Rooms', 
+    'AC Indoor', 'Scoreboard', 'Locker Rooms', 'Cafeteria', 
+    'First Aid', 'Security', 'WiFi'
+  ];
+
+  const normalize = (data) => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.content)) return data.content;
+    return [];
+  };
+
+  const loadMyTurfs = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const data = await turfService.getMyTurfs();
+      setMyTurfs(normalize(data));
+    } catch (err) {
+      setError(err?.response?.data || 'Failed to load your turfs');
+      setMyTurfs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const [ownerStats, setOwnerStats] = useState({ totalBookings: 0, totalRevenue: 0 });
+  const loadOwnerStats = async () => {
+    try {
+      const stats = await turfService.getMyTurfsStats();
+      setOwnerStats({
+        totalBookings: Number(stats?.totalBookings || 0),
+        totalRevenue: Number(stats?.totalRevenue || 0)
+      });
+    } catch (_) {}
+  };
+
+  const loadBookingsForSelected = async (turfId) => {
+    if (!turfId) return;
+    try {
+      setLoadingBookings(true);
+      setError('');
+      const data = await bookingService.getBookingsByTurf(turfId);
+      setTurfBookings(normalize(data));
+    } catch (err) {
+      setError(err?.response?.data || 'Failed to load bookings');
+      setTurfBookings([]);
+    } finally {
+      setLoadingBookings(false);
+    }
+  };
+
+  const loadUserProfile = () => {
+    const user = authService.getCurrentUser();
+    if (user) {
+      const profile = {
+        firstName: user.firstName || user.fullName?.split(' ')[0] || '',
+        lastName: user.lastName || user.fullName?.split(' ').slice(1).join(' ') || '',
+        email: user.email || '',
+        phone: user.phone || '+91 98765 43210'
+      };
+      setUserProfile(profile);
+    }
+  };
+
+  const handleProfileUpdate = (updatedProfile) => {
+    // Update the local user profile state
+    setUserProfile({
+      firstName: updatedProfile.firstName || updatedProfile.fullName?.split(' ')[0] || '',
+      lastName: updatedProfile.lastName || updatedProfile.fullName?.split(' ').slice(1).join(' ') || '',
+      email: updatedProfile.email || '',
+      phone: updatedProfile.phone || ''
+    });
+  };
+
+  useEffect(() => {
+    loadMyTurfs();
+    loadOwnerStats();
+    loadUserProfile();
+  }, []);
+
+  useEffect(() => {
+    if (selectedTurfId) {
+      loadBookingsForSelected(selectedTurfId);
+    }
+  }, [selectedTurfId]);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSportToggle = (sport) => {
+    setFormData(prev => ({
+      ...prev,
+      sports: prev.sports.includes(sport)
+        ? prev.sports.filter(s => s !== sport)
+        : [...prev.sports, sport]
+    }));
+  };
+
+  const handleAmenityToggle = (amenity) => {
+    setFormData(prev => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter(a => a !== amenity)
+        : [...prev.amenities, amenity]
+    }));
+  };
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      // Limit to 5 images maximum
+      const limitedFiles = files.slice(0, 5);
+      setSelectedImages(limitedFiles);
+      
+      // Create preview URLs
+      const previews = limitedFiles.map(file => URL.createObjectURL(file));
+      setImagePreviews(previews);
+      
+      // Update form data
+      setFormData(prev => ({
+        ...prev,
+        images: limitedFiles
+      }));
+    }
+  };
+
+  const handleOpenViewTurf = (turfId) => {
+    setViewTurfId(turfId);
+    setShowTurfDetailsModal(true);
+  };
+
+  const handleOpenEditTurf = (turf) => {
+    setIsEditing(true);
+    setEditingTurfId(turf.id);
+    // Prefill form fields from turf
+    const priceValue = turf.pricePerHour || turf.price || '';
+    const amenitiesArray = Array.isArray(turf.amenities)
+      ? turf.amenities
+      : (typeof turf.amenities === 'string'
+        ? turf.amenities.split(',').map((s) => s.trim()).filter(Boolean)
+        : []);
+
+    setFormData({
+      turfName: turf.name || '',
+      location: turf.location || '',
+      description: turf.description || '',
+      price: priceValue,
+      sports: [],
+      amenities: amenitiesArray,
+      images: [] // keep empty until user selects new files
+    });
+
+    // Prepare previews from existing images string, if any
+    const imagesStr = typeof turf.images === 'string' ? turf.images : '';
+    setExistingImagesString(imagesStr);
+    const previews = imagesStr
+      ? imagesStr.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+    setSelectedImages([]);
+    setImagePreviews(previews);
+
+    setShowAddTurfForm(true);
+  };
+
+  const removeImage = (index) => {
+    const newImages = selectedImages.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    
+    setSelectedImages(newImages);
+    setImagePreviews(newPreviews);
+    setFormData(prev => ({
+      ...prev,
+      images: newImages
+    }));
+  };
+
+  const handleSubmitRequest = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      // Validate required fields
+      if (!formData.turfName || !formData.location || !formData.description || !formData.price) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
+
+      if (isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+        setError('Please enter a valid price');
+        setLoading(false);
+        return;
+      }
+
+      let payloadBase = {
+        name: formData.turfName,
+        description: formData.description,
+        location: formData.location,
+        pricePerHour: Number(formData.price),
+        amenities: formData.amenities.join(',')
+      };
+
+      // If user selected new images, convert and send as imageArray; otherwise keep previous images when editing
+      if (formData.images && formData.images.length > 0) {
+        const imageStrings = await Promise.all(
+          formData.images.map(file => {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(file);
+            });
+          })
+        );
+        payloadBase = { ...payloadBase, imageArray: imageStrings };
+      } else if (isEditing && existingImagesString) {
+        payloadBase = { ...payloadBase, images: existingImagesString };
+      }
+
+      console.log('Submitting turf with payload:', payloadBase, 'isEditing:', isEditing);
+
+      let result;
+      if (isEditing && editingTurfId) {
+        result = await turfService.updateTurf(editingTurfId, payloadBase);
+      } else {
+        result = await turfService.createTurf(payloadBase);
+      }
+      
+      console.log('Turf creation result:', result);
+      
+      // Show success message
+      alert(isEditing ? 'Turf updated successfully!' : 'Turf submitted for approval successfully!');
+      
+      setShowAddTurfForm(false);
+      setIsEditing(false);
+      setEditingTurfId(null);
+      setExistingImagesString('');
+      setFormData({ turfName: '', location: '', description: '', price: '', sports: [], amenities: [], images: [] });
+      setSelectedImages([]);
+      setImagePreviews([]);
+      await loadMyTurfs();
+      
+    } catch (err) {
+      console.error('Turf creation error:', err);
+      
+      let errorMessage = 'Failed to submit turf';
+      
+      if (err?.response?.data) {
+        errorMessage = err.response.data;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.toString) {
+        errorMessage = err.toString();
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const safeTurfs = Array.isArray(myTurfs) ? myTurfs : [];
+  const pendingTurfs = safeTurfs.filter(turf => !turf.isActive);
+  const activeTurfs = safeTurfs.filter(turf => turf.isActive);
+  
+  const stats = {
+    totalTurfs: safeTurfs.length,
+    pendingRequests: pendingTurfs.length,
+    totalBookings: ownerStats.totalBookings || safeTurfs.reduce((sum, turf) => sum + (turf.totalBookings || 0), 0),
+    totalRevenue: ownerStats.totalRevenue || safeTurfs.reduce((sum, turf) => sum + (turf.revenue || 0), 0)
+  };
+
+  const renderOverview = () => (
+    <div className="space-y-6">
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
+      )}
+      
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Owner Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-600">Name</label>
+            <p className="text-lg font-medium text-gray-900">{userProfile.firstName} {userProfile.lastName}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600">Email</label>
+            <p className="text-lg font-medium text-gray-900">{userProfile.email}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600">Phone</label>
+            <p className="text-lg font-medium text-gray-900">{userProfile.phone}</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600">Role</label>
+            <p className="text-lg font-medium text-gray-900">Turf Owner</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">My Turfs</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.totalTurfs}</p>
+            </div>
+            <MapPin className="w-8 h-8 text-green-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Pending Requests</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.pendingRequests}</p>
+            </div>
+            <Clock className="w-8 h-8 text-orange-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.totalBookings}</p>
+            </div>
+            <Calendar className="w-8 h-8 text-blue-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+              <p className="text-2xl font-semibold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</p>
+            </div>
+            <DollarSign className="w-8 h-8 text-purple-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <button
+            onClick={() => setShowAddTurfForm(true)}
+            className="flex items-center justify-center space-x-2 p-4 border-2 border-dashed border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors"
+          >
+            <Plus className="w-6 h-6 text-green-600" />
+            <span className="text-green-600 font-medium">Add New Turf</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('bookings')}
+            className="flex items-center justify-center space-x-2 p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            <Users className="w-6 h-6 text-blue-600" />
+            <span className="text-blue-600 font-medium">Manage Bookings</span>
+          </button>
+          <button 
+            onClick={() => setShowPersonalDetailsModal(true)}
+            className="flex items-center justify-center space-x-2 p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+          >
+            <User className="w-6 h-6 text-orange-600" />
+            <span className="text-orange-600 font-medium">Personal Details</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('analytics')}
+            className="flex items-center justify-center space-x-2 p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+          >
+            <DollarSign className="w-6 h-6 text-purple-600" />
+            <span className="text-purple-600 font-medium">View Revenue</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Bookings</h3>
+        {safeTurfs.length > 0 ? (
+          <div className="space-y-3">
+            {safeTurfs.slice(0, 3).map((turf) => (
+              <div key={turf.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                <div>
+                  <h4 className="font-medium text-gray-900">{turf.name}</h4>
+                  <p className="text-sm text-gray-600">Example booking</p>
+                </div>
+                <div className="text-right">
+                  <div className="text-lg font-semibold text-green-600">₹800</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <p>No turfs yet. Add your first turf to get started!</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderMyTurfs = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-semibold text-gray-900">My Turfs</h3>
+        <button
+          onClick={() => setShowAddTurfForm(true)}
+          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Add New Turf</span>
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 bg-white rounded-xl">Loading…</div>
+      ) : safeTurfs.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {safeTurfs.map((turf) => (
+            <div key={turf.id} className={`bg-white rounded-xl shadow-md p-6 border-l-4 ${turf.isActive ? 'border-green-500' : 'border-orange-500'}`}>
+              {/* Turf Images */}
+              {turf.images && turf.images.split(',').length > 0 && turf.images.split(',')[0] !== '' && (
+                <div className="mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {turf.images.split(',').slice(0, 3).map((image, index) => (
+                      <img
+                        key={index}
+                        src={image.trim()}
+                        alt={`${turf.name} ${index + 1}`}
+                        className="w-full h-20 object-cover rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h5 className="text-lg font-semibold text-gray-900">{turf.name}</h5>
+                  <div className="flex items-center text-gray-600 mt-1">
+                    <MapPin className="w-4 h-4 mr-1" />
+                    {turf.location}
+                  </div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-sm ${turf.isActive ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>
+                  {turf.isActive ? 'Active' : 'Pending Approval'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <span className="text-sm text-gray-600">Price:</span>
+                  <p className="font-semibold text-green-600">₹{turf.pricePerHour || turf.price}/hr</p>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-600">Rating:</span>
+                  <div className="flex items-center">
+                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                    <span className="ml-1 font-semibold">{turf.rating || '—'}</span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-600">Bookings:</span>
+                  <p className="font-semibold">{turf.totalBookings || 0}</p>
+                </div>
+                <div>
+                  <span className="text-sm text-gray-600">Revenue:</span>
+                  <p className="font-semibold">₹{(turf.revenue || 0).toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button onClick={() => handleOpenViewTurf(turf.id)} className="flex items-center space-x-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                  <Eye className="w-4 h-4" />
+                  <span>View</span>
+                </button>
+                <button onClick={() => handleOpenEditTurf(turf)} className="flex items-center space-x-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
+                  <Edit className="w-4 h-4" />
+                  <span>Edit</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 bg-white rounded-xl">
+          <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500 mb-4">No turfs added yet</p>
+          <button
+            onClick={() => setShowAddTurfForm(true)}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Add Your First Turf
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderBookingsTab = () => (
+    <div className="space-y-6">
+      <h3 className="text-xl font-semibold text-gray-900">Manage Bookings</h3>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Turf</label>
+            <select
+              value={selectedTurfId}
+              onChange={(e) => setSelectedTurfId(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="">— Choose —</option>
+              {safeTurfs.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          {loadingBookings ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">Loading…</div>
+          ) : selectedTurfId && turfBookings.length > 0 ? (
+            <div className="space-y-3">
+              {turfBookings.map(b => (
+                <div key={b.id} className="flex items-center justify-between p-4 bg-white rounded-lg border">
+                  <div>
+                    <div className="font-medium text-gray-900">Booking #{b.id}</div>
+                    <div className="text-sm text-gray-600">{b.bookingDate} • {b.startTime} - {b.endTime}</div>
+                  </div>
+                  <div className="text-sm text-gray-700">{b.status || 'confirmed'}</div>
+                </div>
+              ))}
+            </div>
+          ) : selectedTurfId ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg text-gray-600">No bookings for this turf</div>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg text-gray-600">Select a turf to view bookings</div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderAddTurfForm = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-2xl font-bold text-gray-900">Add New Turf</h3>
+            <button
+              onClick={() => setShowAddTurfForm(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <XCircle className="w-6 h-6" />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
+          )}
+
+          <form onSubmit={handleSubmitRequest} className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Turf Name *
+              </label>
+              <input
+                type="text"
+                value={formData.turfName}
+                onChange={(e) => handleInputChange('turfName', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter turf name"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Location *
+              </label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => handleInputChange('location', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter complete address"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Describe your turf facilities and features"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Price per Hour (₹) *
+              </label>
+              <input
+                type="number"
+                value={formData.price}
+                onChange={(e) => handleInputChange('price', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter hourly rate"
+                min="100"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Sports Available
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {sportsOptions.map((sport) => (
+                  <label key={sport} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.sports.includes(sport)}
+                      onChange={() => handleSportToggle(sport)}
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-gray-700">{sport}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Amenities
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {amenitiesOptions.map((amenity) => (
+                  <label key={amenity} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.amenities.includes(amenity)}
+                      onChange={() => handleAmenityToggle(amenity)}
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-gray-700">{amenity}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Turf Images (Max 5 images)
+              </label>
+              <div className="space-y-4">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.5 0 5.5 5.5 0 0 0 0 6.5a5.56 5.56 0 0 0 2.975 4.5H0v3h13Z"/>
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 13h3l-3-3-3 3h3Z"/>
+                      </svg>
+                      <p className="mb-2 text-sm text-gray-500">
+                        <span className="font-semibold">Click to upload</span> turf images
+                      </p>
+                      <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5 images)</p>
+                    </div>
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      multiple 
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                </div>
+
+                {imagePreviews.length > 0 && (
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    {imagePreviews.map((preview, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={preview}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex space-x-4 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAddTurfForm(false)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-70"
+              >
+                {loading ? 'Submitting…' : 'Submit for Approval'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Turf Owner Dashboard</h1>
+          <p className="text-gray-600 mt-2">Manage your turfs and track performance</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-md mb-6">
+          <div className="border-b border-gray-200">
+            <nav className="flex">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'overview'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Overview
+              </button>
+              <button
+                onClick={() => setActiveTab('turfs')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'turfs'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                My Turfs
+              </button>
+              <button
+                onClick={() => setActiveTab('bookings')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'bookings'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Bookings
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'analytics'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                Analytics
+              </button>
+            </nav>
+          </div>
+
+          <div className="p-6">
+            {activeTab === 'overview' && renderOverview()}
+            {activeTab === 'turfs' && renderMyTurfs()}
+            {activeTab === 'bookings' && renderBookingsTab()}
+            {activeTab === 'analytics' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+                        <p className="text-2xl font-semibold text-gray-900">{ownerStats.totalBookings}</p>
+                      </div>
+                      <Calendar className="w-8 h-8 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                        <p className="text-2xl font-semibold text-gray-900">₹{ownerStats.totalRevenue.toLocaleString()}</p>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-purple-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Active Turfs</p>
+                        <p className="text-2xl font-semibold text-gray-900">{safeTurfs.filter(t => t.isActive).length}</p>
+                      </div>
+                      <MapPin className="w-8 h-8 text-green-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">By Turf</h3>
+                  {safeTurfs.length === 0 ? (
+                    <div className="text-gray-600">No turfs yet.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {safeTurfs.map((turf) => (
+                        <div key={turf.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div>
+                            <div className="font-medium text-gray-900">{turf.name}</div>
+                            <div className="text-sm text-gray-600">₹{(turf.pricePerHour || turf.price || 0)}/hr</div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <div className="text-right">
+                              <div className="text-sm text-gray-600">Status</div>
+                              <div className="text-sm font-semibold">{turf.isActive ? 'Active' : 'Pending'}</div>
+                            </div>
+                            <button
+                              onClick={() => { setSelectedTurfId(String(turf.id)); setActiveTab('bookings'); }}
+                              className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+                            >
+                              View bookings
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {showAddTurfForm && renderAddTurfForm()}
+      <TurfDetailsModal
+        isOpen={showTurfDetailsModal}
+        onClose={() => setShowTurfDetailsModal(false)}
+        turfId={viewTurfId}
+      />
+      
+      <PersonalDetailsModal
+        isOpen={showPersonalDetailsModal}
+        onClose={() => setShowPersonalDetailsModal(false)}
+        onProfileUpdate={handleProfileUpdate}
+      />
+    </div>
+  );
+};
+
+export default TurfOwnerDashboard;

@@ -122,9 +122,10 @@ const Home = () => {
                   </div>
                   <button 
                     onClick={handleSearch} 
-                    className="bg-green-600 text-white w-full sm:w-auto px-8 py-3 mt-2 sm:mt-0 rounded-full hover:bg-green-700 transition-colors duration-200 font-semibold"
+                    className="bg-green-600 text-white w-full sm:w-auto px-6 py-2.5 mt-2 sm:mt-0 rounded-full hover:bg-green-700 transition-colors duration-200 font-medium text-sm sm:text-base flex items-center justify-center"
                     aria-label="Search for turfs"
                   >
+                    <Search className="w-4 h-4 mr-1.5" />
                     Search
                   </button>
                 </div>

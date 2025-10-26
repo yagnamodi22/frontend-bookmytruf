@@ -1,482 +1,135 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { useLocation } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Star, CreditCard, User, CheckCircle } from 'react-feather';
+import React, { useEffect, useState } from 'react';
+import { Calendar, Clock, MapPin, CheckCircle } from 'lucide-react';
 import { bookingService } from '../services/bookingService';
 import { authService } from '../services/authService';
 
 const Dashboard = () => {
-  const location = useLocation();
   const [activeTab, setActiveTab] = useState('bookings');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
   const [bookings, setBookings] = useState([]);
   const [pastBookings, setPastBookings] = useState([]);
-  const [cancellingId, setCancellingId] = useState(null);
-  const [userProfile, setUserProfile] = useState({
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    createdAt: null,
-    favoriteSport: 'Football'
-  });
-  const [profileForm, setProfileForm] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    favoriteSport: 'Football'
-  });
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [updating, setUpdating] = useState(false);
-  const [changingPassword, setChangingPassword] = useState(false);
-  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
-  const [serverTotals, setServerTotals] = useState({ totalBookings: 0, totalSpent: 0 });
-
-  const loadBookings = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      const data = await bookingService.getMyBookings();
-      setBookings(data);
-      const pastData = await bookingService.getPastBookings();
-      setPastBookings(pastData || []);
-    } catch (err) {
-      setError(err?.response?.data || 'Failed to load bookings');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadStats = async () => {
-    try {
-      const stats = await bookingService.getMyBookingStats();
-      setServerTotals({
-        totalBookings: Number(stats?.totalBookings || 0),
-        totalSpent: Number(stats?.totalSpent || 0)
-      });
-    } catch (_) {}
-  };
-
-  const loadUserProfile = () => {
-    const user = authService.getCurrentUser();
-    if (user) {
-      const profile = {
-        firstName: user.firstName || user.fullName?.split(' ')[0] || '',
-        lastName: user.lastName || user.fullName?.split(' ').slice(1).join(' ') || '',
-        email: user.email || '',
-        phone: user.phone || '+91 98765 43210',
-        createdAt: user.createdAt ? new Date(user.createdAt) : null,
-        favoriteSport: 'Football'
-      };
-      setUserProfile(profile);
-      setProfileForm({
-        firstName: profile.firstName,
-        lastName: profile.lastName,
-        phone: profile.phone,
-        favoriteSport: profile.favoriteSport
-      });
-    }
-  };
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    loadBookings();
-    loadStats();
-    loadUserProfile();
+    const fetchBookings = async () => {
+      try {
+        setLoading(true);
+        const current = await bookingService.getMyBookings();
+        const past = await bookingService.getPastBookings();
+        setBookings(current || []);
+        setPastBookings(past || []);
+      } catch (err) {
+        setError('Failed to load bookings');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchBookings();
   }, []);
 
-  // Refresh dashboard after booking
-  useEffect(() => {
-    if (location.state?.refreshDashboard) {
-      loadBookings();
-      if (location.state?.bookingSuccess) {
-        const bookingCount = location.state?.bookingCount || 1;
-        const totalAmount = location.state?.totalAmount || 0;
-        setSuccessMessage(`Successfully booked ${bookingCount} slot${bookingCount > 1 ? 's' : ''} for ₹${totalAmount.toLocaleString()}`);
-        setShowSuccessMessage(true);
-        setTimeout(() => setShowSuccessMessage(false), 5000);
-      }
-    }
-  }, [location.state]);
-
-  useEffect(() => {
-    const interval = setInterval(() => loadBookings(), 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Filter completed or past bookings
-  const filteredPastBookings = useMemo(() => {
-    if (!pastBookings.length) return [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return pastBookings.filter(
-      (booking) => booking.status === 'completed' || new Date(booking.date) < today
-    );
-  }, [pastBookings]);
-
-  const totalSpent = useMemo(() => {
-    if (!Array.isArray(bookings)) return 0;
-    return bookings.reduce((sum, b) => sum + Number(b.totalAmount ?? b.amount ?? b.price ?? 0), 0);
-  }, [bookings]);
-
-  const displayTotalBookings = useMemo(() => {
-    const count = Array.isArray(bookings) ? bookings.length : serverTotals.totalBookings;
-    if (count === 0 && location.state?.bookingSuccess) {
-      return location.state?.bookingCount || 0;
-    }
-    return count;
-  }, [bookings, serverTotals, location.state]);
-
-  const displayTotalSpent = useMemo(() => {
-    if (totalSpent === 0 && serverTotals.totalSpent > 0) {
-      return serverTotals.totalSpent;
-    }
-    if (totalSpent === 0 && location.state?.bookingSuccess) {
-      return Number(location.state?.totalAmount || 0);
-    }
-    return totalSpent;
-  }, [totalSpent, serverTotals, location.state]);
-
-  const handleCancel = async (id) => {
-    try {
-      setCancellingId(id);
-      await bookingService.cancelBooking(id);
-      await loadBookings();
-    } catch (err) {
-      setError(err?.response?.data || 'Failed to cancel booking');
-    } finally {
-      setCancellingId(null);
-    }
-  };
-
-  const handleProfileUpdate = async (e) => {
-    e.preventDefault();
-    setUpdating(true);
-    setError('');
-
-    try {
-      const response = await fetch('http://localhost:8080/api/auth/profile', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          firstName: profileForm.firstName,
-          lastName: profileForm.lastName,
-          phone: profileForm.phone
-        })
-      });
-
-      if (response.ok) {
-        const updatedProfile = await response.json();
-        setUserProfile((prev) => ({
-          ...prev,
-          firstName: updatedProfile.firstName,
-          lastName: updatedProfile.lastName,
-          phone: updatedProfile.phone
-        }));
-        const currentUser = authService.getCurrentUser();
-        if (currentUser) {
-          currentUser.firstName = updatedProfile.firstName;
-          currentUser.lastName = updatedProfile.lastName;
-          currentUser.phone = updatedProfile.phone;
-          currentUser.fullName = `${updatedProfile.firstName} ${updatedProfile.lastName}`;
-          localStorage.setItem('user', JSON.stringify(currentUser));
-        }
-        alert('Profile updated successfully!');
-      } else {
-        const errorData = await response.text();
-        setError(errorData || 'Failed to update profile');
-      }
-    } catch {
-      setError('Failed to update profile');
-    } finally {
-      setUpdating(false);
-    }
-  };
-
-  const handlePasswordChange = async (e) => {
-    e.preventDefault();
-    const policy = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/;
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      setError('New passwords do not match');
-      return;
-    }
-    if (!policy.test(passwordForm.newPassword)) {
-      setError('Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.');
-      return;
-    }
-
-    setChangingPassword(true);
-    setError('');
-
-    try {
-      const response = await fetch('http://localhost:8080/api/auth/change-password', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify({
-          email: passwordForm.newPassword,
-          password: passwordForm.currentPassword
-        })
-      });
-
-      if (response.ok) {
-        alert('Password changed successfully!');
-        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-        setShowPasswordForm(false);
-      } else {
-        const errorData = await response.text();
-        setError(errorData || 'Failed to change password');
-      }
-    } catch {
-      setError('Failed to change password');
-    } finally {
-      setChangingPassword(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '—';
-    try {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-    } catch {
-      return '—';
-    }
-  };
-
-  const renderBookingsTab = () => (
-    <div className="space-y-6">
-      {error && <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>}
-      <div>
-        <h3 className="text-xl font-semibold text-gray-900 mb-4">Past Bookings</h3>
-        {loading ? (
-          <div className="text-center py-8 bg-white rounded-xl">Loading…</div>
-        ) : filteredPastBookings.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredPastBookings.map((booking) => (
-              <div key={booking.id} className="bg-white rounded-xl shadow-md overflow-hidden">
-                <div className="h-40 overflow-hidden">
-                  <img
-                    src={booking.imageUrl || 'https://via.placeholder.com/300x150?text=Turf+Image'}
-                    alt={booking.turf?.name || 'Turf'}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-4">
-                  <h4 className="font-semibold text-gray-900">{booking.turf?.name || 'Turf'}</h4>
-                  <div className="flex items-center text-gray-600 text-sm mt-1">
-                    <MapPin className="w-4 h-4 mr-1" />
-                    {booking.turf?.location || '—'}
-                  </div>
-                  <div className="flex items-center text-gray-600 text-sm mt-1">
-                    <Calendar className="w-4 h-4 mr-1" />
-                    {booking.bookingDate}
-                  </div>
-                  <div className="flex items-center text-gray-600 text-sm mt-1">
-                    <Clock className="w-4 h-4 mr-1" />
-                    {booking.startTime} - {booking.endTime}
-                  </div>
-                  <div className="flex items-center text-gray-600 text-sm mt-1">
-                    <CreditCard className="w-4 h-4 mr-1" />
-                    <span>₹{booking.amount || booking.price || 0}</span>
-                  </div>
-                  <div className="mt-2">
-                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs flex items-center">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      {booking.status || 'completed'}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex space-x-3">
-                    <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                      View Receipt
-                    </button>
-                    <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
-                      Book Again
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-gray-50 p-8 rounded-lg text-center">
-            <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">No past bookings yet</p>
-            <p className="text-gray-400 mt-2">Your completed bookings will appear here</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-
-  const renderProfileTab = () => (
-    <div className="space-y-6">
-      {error && <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>}
-
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-6">Profile Information</h3>
-        <form onSubmit={handleProfileUpdate} className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">First Name</label>
-              <input
-                type="text"
-                value={profileForm.firstName}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, firstName: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Last Name</label>
-              <input
-                type="text"
-                value={profileForm.lastName}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, lastName: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Email Address</label>
-              <input
-                type="email"
-                value={userProfile.email}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500"
-                readOnly
-              />
-              <p className="text-sm text-gray-500 mt-1">Email cannot be changed</p>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-              <input
-                type="tel"
-                value={profileForm.phone}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Favorite Sport</label>
-              <select
-                value={profileForm.favoriteSport}
-                onChange={(e) => setProfileForm((prev) => ({ ...prev, favoriteSport: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              >
-                <option value="football">Football</option>
-                <option value="cricket">Cricket</option>
-                <option value="basketball">Basketball</option>
-                <option value="tennis">Tennis</option>
-                <option value="badminton">Badminton</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="flex space-x-4">
-            <button
-              type="submit"
-              disabled={updating}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
-            >
-              {updating ? 'Updating...' : 'Update Profile'}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowPasswordForm(!showPasswordForm)}
-              className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-            >
-              Change Password
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {showPasswordForm && (
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <h4 className="text-lg font-semibold text-gray-900 mb-4">Change Password</h4>
-          <form onSubmit={handlePasswordChange} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
-              <input
-                type="password"
-                value={passwordForm.currentPassword}
-                onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
-              <input
-                type="password"
-                value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                required
-                minLength={8}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
-              <input
-                type="password"
-                value={passwordForm.confirmPassword}
-                onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                required
-                minLength={8}
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={changingPassword}
-              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
-            >
-              {changingPassword ? 'Changing...' : 'Change Password'}
-            </button>
-          </form>
+  const renderPastBookings = () => {
+    if (loading) {
+      return (
+        <div className="bg-white rounded-xl p-8 text-center text-gray-600">
+          Loading your past bookings…
         </div>
-      )}
-    </div>
-  );
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="bg-red-50 text-red-700 rounded-xl p-4 text-center">
+          {error}
+        </div>
+      );
+    }
+
+    if (pastBookings.length === 0) {
+      return (
+        <div className="bg-gray-50 p-8 rounded-lg text-center">
+          <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500 text-lg">No past bookings yet</p>
+          <p className="text-gray-400 mt-2">Your completed bookings will appear here</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {pastBookings.map((b) => (
+          <div
+            key={b.id}
+            className="bg-white shadow-md rounded-xl overflow-hidden hover:shadow-lg transition-all"
+          >
+            <img
+              src={b.imageUrl || 'https://via.placeholder.com/400x200?text=Turf'}
+              alt="Turf"
+              className="w-full h-40 object-cover"
+            />
+            <div className="p-4">
+              <h3 className="font-semibold text-gray-900">{b.turf?.name || 'Turf'}</h3>
+              <div className="flex items-center text-gray-600 text-sm mt-1">
+                <MapPin className="w-4 h-4 mr-1" />
+                {b.turf?.location || 'Unknown'}
+              </div>
+              <div className="flex items-center text-gray-600 text-sm mt-1">
+                <Calendar className="w-4 h-4 mr-1" />
+                {b.bookingDate || 'N/A'}
+              </div>
+              <div className="flex items-center text-gray-600 text-sm mt-1">
+                <Clock className="w-4 h-4 mr-1" />
+                {b.startTime} - {b.endTime}
+              </div>
+              <div className="flex items-center mt-3 text-green-700 text-sm">
+                <CheckCircle className="w-4 h-4 mr-1" />
+                {b.status || 'Completed'}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const renderProfile = () => {
+    const user = authService.getCurrentUser();
+    if (!user) return <div className="text-center text-gray-600">No user data</div>;
+    return (
+      <div className="bg-white p-6 rounded-xl shadow-md max-w-lg mx-auto">
+        <h2 className="text-xl font-semibold text-gray-900 mb-4">My Profile</h2>
+        <p><strong>Name:</strong> {user.fullName}</p>
+        <p><strong>Email:</strong> {user.email}</p>
+        <p><strong>Phone:</strong> {user.phone || 'Not provided'}</p>
+      </div>
+    );
+  };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {showSuccessMessage && (
-        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-lg">{successMessage}</div>
-      )}
-
-      <div className="flex space-x-4 mb-8 border-b pb-2">
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex space-x-4 border-b mb-8">
         <button
           onClick={() => setActiveTab('bookings')}
-          className={`px-4 py-2 rounded-t-lg font-medium ${
-            activeTab === 'bookings' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500'
+          className={`pb-2 font-medium ${
+            activeTab === 'bookings'
+              ? 'text-green-600 border-b-2 border-green-600'
+              : 'text-gray-500'
           }`}
         >
-          My Bookings
+          Past Bookings
         </button>
         <button
           onClick={() => setActiveTab('profile')}
-          className={`px-4 py-2 rounded-t-lg font-medium ${
-            activeTab === 'profile' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500'
+          className={`pb-2 font-medium ${
+            activeTab === 'profile'
+              ? 'text-green-600 border-b-2 border-green-600'
+              : 'text-gray-500'
           }`}
         >
           Profile
         </button>
       </div>
 
-      {activeTab === 'bookings' ? renderBookingsTab() : renderProfileTab()}
+      {activeTab === 'bookings' ? renderPastBookings() : renderProfile()}
     </div>
   );
 };

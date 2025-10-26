@@ -36,6 +36,7 @@ const Dashboard = () => {
   const [changingPassword, setChangingPassword] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [serverTotals, setServerTotals] = useState({ totalBookings: 0, totalSpent: 0 });
 
   const loadBookings = async () => {
     setLoading(true);
@@ -43,9 +44,6 @@ const Dashboard = () => {
     try {
       const data = await bookingService.getMyBookings();
       setBookings(data);
-      // console.log(data);
-      
-      // Load past bookings
       const pastData = await bookingService.getPastBookings();
       setPastBookings(pastData || []);
     } catch (err) {
@@ -58,16 +56,11 @@ const Dashboard = () => {
   const loadStats = async () => {
     try {
       const stats = await bookingService.getMyBookingStats();
-      if (Array.isArray(bookings) && bookings.length === 0 && stats?.totalBookings > 0) {
-        // keep showing consistent stats even before bookings list finishes loading
-      }
       setServerTotals({
         totalBookings: Number(stats?.totalBookings || 0),
         totalSpent: Number(stats?.totalSpent || 0)
       });
-    } catch (_) {
-      // ignore; fall back to list-derived totals
-    }
+    } catch (_) {}
   };
 
   const loadUserProfile = () => {
@@ -97,60 +90,40 @@ const Dashboard = () => {
     loadUserProfile();
   }, []);
 
-  // Refresh data when returning from booking page
+  // Refresh dashboard after booking
   useEffect(() => {
     if (location.state?.refreshDashboard) {
       loadBookings();
-      
-      // Show success message if booking was successful
       if (location.state?.bookingSuccess) {
         const bookingCount = location.state?.bookingCount || 1;
         const totalAmount = location.state?.totalAmount || 0;
         setSuccessMessage(`Successfully booked ${bookingCount} slot${bookingCount > 1 ? 's' : ''} for ₹${totalAmount.toLocaleString()}`);
         setShowSuccessMessage(true);
-        
-        // Hide success message after 5 seconds
-        setTimeout(() => {
-          setShowSuccessMessage(false);
-        }, 5000);
+        setTimeout(() => setShowSuccessMessage(false), 5000);
       }
     }
   }, [location.state]);
 
-  // Periodic refresh to keep data up-to-date
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadBookings();
-    }, 30000); // Refresh every 30 seconds
-
+    const interval = setInterval(() => loadBookings(), 30000);
     return () => clearInterval(interval);
   }, []);
-
 
   // Filter completed or past bookings
   const filteredPastBookings = useMemo(() => {
     if (!pastBookings.length) return [];
-    
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
-    return pastBookings.filter(booking => 
-      booking.status === "completed" || 
-      new Date(booking.date) < today
+    return pastBookings.filter(
+      (booking) => booking.status === 'completed' || new Date(booking.date) < today
     );
   }, [pastBookings]);
 
-  const [serverTotals, setServerTotals] = useState({ totalBookings: 0, totalSpent: 0 });
-
   const totalSpent = useMemo(() => {
     if (!Array.isArray(bookings)) return 0;
-    return bookings.reduce((sum, b) => {
-      const val = b.totalAmount ?? b.amount ?? b.price ?? 0;
-      return sum + Number(val);
-    }, 0);
+    return bookings.reduce((sum, b) => sum + Number(b.totalAmount ?? b.amount ?? b.price ?? 0), 0);
   }, [bookings]);
 
-  // Optimistic display fallbacks right after booking navigation
   const displayTotalBookings = useMemo(() => {
     const count = Array.isArray(bookings) ? bookings.length : serverTotals.totalBookings;
     if (count === 0 && location.state?.bookingSuccess) {
@@ -202,14 +175,12 @@ const Dashboard = () => {
 
       if (response.ok) {
         const updatedProfile = await response.json();
-        setUserProfile(prev => ({
+        setUserProfile((prev) => ({
           ...prev,
           firstName: updatedProfile.firstName,
           lastName: updatedProfile.lastName,
           phone: updatedProfile.phone
         }));
-
-        // Update localStorage user data
         const currentUser = authService.getCurrentUser();
         if (currentUser) {
           currentUser.firstName = updatedProfile.firstName;
@@ -218,13 +189,12 @@ const Dashboard = () => {
           currentUser.fullName = `${updatedProfile.firstName} ${updatedProfile.lastName}`;
           localStorage.setItem('user', JSON.stringify(currentUser));
         }
-
         alert('Profile updated successfully!');
       } else {
         const errorData = await response.text();
         setError(errorData || 'Failed to update profile');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to update profile');
     } finally {
       setUpdating(false);
@@ -254,7 +224,7 @@ const Dashboard = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         },
         body: JSON.stringify({
-          email: passwordForm.newPassword, // Backend expects new password in email field
+          email: passwordForm.newPassword,
           password: passwordForm.currentPassword
         })
       });
@@ -267,7 +237,7 @@ const Dashboard = () => {
         const errorData = await response.text();
         setError(errorData || 'Failed to change password');
       }
-    } catch (err) {
+    } catch {
       setError('Failed to change password');
     } finally {
       setChangingPassword(false);
@@ -278,11 +248,7 @@ const Dashboard = () => {
     if (!dateString) return '—';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric'
-      });
+      return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
     } catch {
       return '—';
     }
@@ -290,10 +256,7 @@ const Dashboard = () => {
 
   const renderBookingsTab = () => (
     <div className="space-y-6">
-      {error && (
-        <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
-      )}
-
+      {error && <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>}
       <div>
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Past Bookings</h3>
         {loading ? (
@@ -303,9 +266,9 @@ const Dashboard = () => {
             {filteredPastBookings.map((booking) => (
               <div key={booking.id} className="bg-white rounded-xl shadow-md overflow-hidden">
                 <div className="h-40 overflow-hidden">
-                  <img 
-                    src={booking.imageUrl || 'https://via.placeholder.com/300x150?text=Turf+Image'} 
-                    alt={booking.turf?.name || 'Turf'} 
+                  <img
+                    src={booking.imageUrl || 'https://via.placeholder.com/300x150?text=Turf+Image'}
+                    alt={booking.turf?.name || 'Turf'}
                     className="w-full h-full object-cover"
                   />
                 </div>
@@ -347,13 +310,9 @@ const Dashboard = () => {
           </div>
         ) : (
           <div className="bg-gray-50 p-8 rounded-lg text-center">
+            <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">No past bookings yet</p>
             <p className="text-gray-400 mt-2">Your completed bookings will appear here</p>
-          </div>
-        ) : (
-          <div className="text-center py-8 bg-white rounded-xl">
-            <Clock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No past bookings</p>
           </div>
         )}
       </div>
@@ -362,9 +321,7 @@ const Dashboard = () => {
 
   const renderProfileTab = () => (
     <div className="space-y-6">
-      {error && (
-        <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
-      )}
+      {error && <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>}
 
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="text-xl font-semibold text-gray-900 mb-6">Profile Information</h3>
@@ -375,7 +332,7 @@ const Dashboard = () => {
               <input
                 type="text"
                 value={profileForm.firstName}
-                onChange={(e) => setProfileForm(prev => ({ ...prev, firstName: e.target.value }))}
+                onChange={(e) => setProfileForm((prev) => ({ ...prev, firstName: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 required
               />
@@ -385,7 +342,7 @@ const Dashboard = () => {
               <input
                 type="text"
                 value={profileForm.lastName}
-                onChange={(e) => setProfileForm(prev => ({ ...prev, lastName: e.target.value }))}
+                onChange={(e) => setProfileForm((prev) => ({ ...prev, lastName: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 required
               />
@@ -405,7 +362,7 @@ const Dashboard = () => {
               <input
                 type="tel"
                 value={profileForm.phone}
-                onChange={(e) => setProfileForm(prev => ({ ...prev, phone: e.target.value }))}
+                onChange={(e) => setProfileForm((prev) => ({ ...prev, phone: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 required
               />
@@ -414,7 +371,7 @@ const Dashboard = () => {
               <label className="block text-sm font-medium text-gray-700 mb-2">Favorite Sport</label>
               <select
                 value={profileForm.favoriteSport}
-                onChange={(e) => setProfileForm(prev => ({ ...prev, favoriteSport: e.target.value }))}
+                onChange={(e) => setProfileForm((prev) => ({ ...prev, favoriteSport: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
               >
                 <option value="football">Football</option>
@@ -454,7 +411,7 @@ const Dashboard = () => {
               <input
                 type="password"
                 value={passwordForm.currentPassword}
-                onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 required
               />
@@ -464,7 +421,7 @@ const Dashboard = () => {
               <input
                 type="password"
                 value={passwordForm.newPassword}
-                onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 required
                 minLength={8}
@@ -475,150 +432,51 @@ const Dashboard = () => {
               <input
                 type="password"
                 value={passwordForm.confirmPassword}
-                onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 required
                 minLength={8}
               />
             </div>
-            <div className="flex space-x-4">
-              <button
-                type="submit"
-                disabled={changingPassword}
-                className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
-              >
-                {changingPassword ? 'Changing...' : 'Change Password'}
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowPasswordForm(false)}
-                className="px-6 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-            </div>
+            <button
+              type="submit"
+              disabled={changingPassword}
+              className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-60"
+            >
+              {changingPassword ? 'Changing...' : 'Change Password'}
+            </button>
           </form>
         </div>
       )}
-
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">Account Statistics</h4>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {Array.isArray(bookings) ? bookings.length : 0}
-            </div>
-            <div className="text-sm text-gray-600">Total Bookings</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">4.8</div>
-            <div className="text-sm text-gray-600">Average Rating</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">₹{totalSpent.toLocaleString()}</div>
-            <div className="text-sm text-gray-600">Total Spent</div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Dashboard</h1>
-          <p className="text-gray-600 mt-2">Manage your bookings and profile</p>
-          
-          {showSuccessMessage && (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex items-center">
-                <div className="flex-shrink-0">
-                  <svg className="h-5 w-5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                </div>
-                <div className="ml-3">
-                  <p className="text-sm font-medium text-green-800">{successMessage}</p>
-                </div>
-                <div className="ml-auto pl-3">
-                  <div className="-mx-1.5 -my-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setShowSuccessMessage(false)}
-                      className="inline-flex bg-green-50 rounded-md p-1.5 text-green-500 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-green-50 focus:ring-green-600"
-                    >
-                      <span className="sr-only">Dismiss</span>
-                      <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {showSuccessMessage && (
+        <div className="mb-4 p-4 bg-green-100 text-green-700 rounded-lg">{successMessage}</div>
+      )}
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Bookings</p>
-                <p className="text-2xl font-semibold text-gray-900">{displayTotalBookings}</p>
-              </div>
-              <Star className="w-8 h-8 text-blue-600" />
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Total Spent</p>
-                <p className="text-2xl font-semibold text-gray-900">₹{displayTotalSpent.toLocaleString()}</p>
-              </div>
-              <CreditCard className="w-8 h-8 text-purple-600" />
-            </div>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600">Member Since</p>
-                <p className="text-2xl font-semibold text-gray-900">{formatDate(userProfile.createdAt)}</p>
-              </div>
-              <User className="w-8 h-8 text-orange-600" />
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-md">
-          <div className="border-b border-gray-200">
-            <nav className="flex">
-              <button
-                onClick={() => setActiveTab('bookings')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'bookings'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-              >
-                My Bookings
-              </button>
-              <button
-                onClick={() => setActiveTab('profile')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'profile'
-                  ? 'border-green-500 text-green-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                  }`}
-              >
-                Profile Settings
-              </button>
-            </nav>
-          </div>
-          <div className="p-6">
-            {activeTab === 'bookings' && renderBookingsTab()}
-            {activeTab === 'profile' && renderProfileTab()}
-          </div>
-        </div>
+      <div className="flex space-x-4 mb-8 border-b pb-2">
+        <button
+          onClick={() => setActiveTab('bookings')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${
+            activeTab === 'bookings' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500'
+          }`}
+        >
+          My Bookings
+        </button>
+        <button
+          onClick={() => setActiveTab('profile')}
+          className={`px-4 py-2 rounded-t-lg font-medium ${
+            activeTab === 'profile' ? 'text-green-600 border-b-2 border-green-600' : 'text-gray-500'
+          }`}
+        >
+          Profile
+        </button>
       </div>
+
+      {activeTab === 'bookings' ? renderBookingsTab() : renderProfileTab()}
     </div>
   );
 };

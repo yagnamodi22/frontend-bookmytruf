@@ -317,14 +317,29 @@ const AdminDashboard = () => {
         return;
       }
 
+      console.log('Saving settings:', changed);
+      
       // Use bulk endpoint to persist in a single request
-      await siteSettingsService.upsertBulk(changed);
-
-      await loadSettings();
-      setSettingsSaveStatus('success');
-      setSettingsSaveMessage('Settings saved successfully.');
-      try { window.dispatchEvent(new CustomEvent('site-settings-updated')); } catch {}
+      const response = await siteSettingsService.upsertBulk(changed);
+      console.log('Settings save response:', response);
+      
+      if (response && response.errors && Object.keys(response.errors).length > 0) {
+        // Handle partial success/errors
+        const errorMessages = Object.entries(response.errors)
+          .map(([key, error]) => `${key}: ${error}`)
+          .join(', ');
+        setSettingsSaveStatus('error');
+        setSettingsSaveMessage(`Some settings failed to save: ${errorMessages}`);
+      } else {
+        // Reload settings from server to ensure UI reflects actual saved values
+        await loadSettings();
+        setSettingsSaveStatus('success');
+        setSettingsSaveMessage('Settings saved successfully.');
+        // Notify other components that settings have been updated
+        try { window.dispatchEvent(new CustomEvent('site-settings-updated')); } catch {}
+      }
     } catch (err) {
+      console.error('Settings save error:', err);
       const message = typeof err?.response?.data === 'string'
         ? err.response.data
         : (err?.response?.data?.message || err?.message || 'Failed to save settings');

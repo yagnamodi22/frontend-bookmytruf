@@ -5,7 +5,6 @@ import { authService } from '../services/authService';
 
 const Dashboard = () => {
   const [activeTab, setActiveTab] = useState('bookings');
-  const [bookings, setBookings] = useState([]);
   const [pastBookings, setPastBookings] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -14,9 +13,7 @@ const Dashboard = () => {
     const fetchBookings = async () => {
       try {
         setLoading(true);
-        const current = await bookingService.getMyBookings();
         const past = await bookingService.getPastBookings();
-        setBookings(current || []);
         setPastBookings(past || []);
       } catch (err) {
         setError('Failed to load bookings');

@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
-import { Calendar, Clock, MapPin, Star, CreditCard, User } from 'lucide-react';
+import { Calendar, Clock, MapPin, Star, CreditCard, User, CheckCircle } from 'react-feather';
 import { bookingService } from '../services/bookingService';
 import { authService } from '../services/authService';
 
@@ -10,6 +10,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [bookings, setBookings] = useState([]);
+  const [pastBookings, setPastBookings] = useState([]);
   const [cancellingId, setCancellingId] = useState(null);
   const [userProfile, setUserProfile] = useState({
     firstName: '',
@@ -43,7 +44,10 @@ const Dashboard = () => {
       const data = await bookingService.getMyBookings();
       setBookings(data);
       // console.log(data);
-
+      
+      // Load past bookings
+      const pastData = await bookingService.getPastBookings();
+      setPastBookings(pastData || []);
     } catch (err) {
       setError(err?.response?.data || 'Failed to load bookings');
     } finally {
@@ -123,12 +127,18 @@ const Dashboard = () => {
   }, []);
 
 
-  const pastBookings = useMemo(() => {
-    const now = new Date();
-    return Array.isArray(bookings)
-      ? bookings.filter(b => new Date(b.bookingDate) < now)
-      : [];
-  }, [bookings]);
+  // Filter completed or past bookings
+  const filteredPastBookings = useMemo(() => {
+    if (!pastBookings.length) return [];
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return pastBookings.filter(booking => 
+      booking.status === "completed" || 
+      new Date(booking.date) < today
+    );
+  }, [pastBookings]);
 
   const [serverTotals, setServerTotals] = useState({ totalBookings: 0, totalSpent: 0 });
 
@@ -288,46 +298,57 @@ const Dashboard = () => {
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Past Bookings</h3>
         {loading ? (
           <div className="text-center py-8 bg-white rounded-xl">Loading…</div>
-        ) : pastBookings.length > 0 ? (
-          <div className="space-y-4">
-            {pastBookings.map((booking) => (
-              <div key={booking.id} className="bg-white rounded-xl shadow-md p-6 border-l-4 border-gray-300">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold text-gray-900">{booking.turf?.name || 'Turf'}</h4>
-                    <div className="flex items-center text-gray-600 text-sm mt-1">
-                      <MapPin className="w-4 h-4 mr-1" />
-                      {booking.turf?.location || '—'}
-                    </div>
-                    <div className="flex items-center text-gray-600 text-sm mt-1">
-                      <Calendar className="w-4 h-4 mr-1" />
-                      {booking.bookingDate}
-                    </div>
-                    <div className="flex items-center text-gray-600 text-sm mt-1">
-                      <Clock className="w-4 h-4 mr-1" />
-                      {booking.startTime} - {booking.endTime}
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-lg font-semibold text-gray-600">₹{booking.amount || booking.price || 0}</div>
-                    <div className="text-sm text-gray-600">{booking.duration || ''}</div>
-                    <div className="mt-2">
-                      <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
-                        {booking.status || 'completed'}
-                      </span>
-                    </div>
-                  </div>
+        ) : filteredPastBookings.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredPastBookings.map((booking) => (
+              <div key={booking.id} className="bg-white rounded-xl shadow-md overflow-hidden">
+                <div className="h-40 overflow-hidden">
+                  <img 
+                    src={booking.imageUrl || 'https://via.placeholder.com/300x150?text=Turf+Image'} 
+                    alt={booking.turf?.name || 'Turf'} 
+                    className="w-full h-full object-cover"
+                  />
                 </div>
-                <div className="mt-4 flex space-x-3">
-                  <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                    View Receipt
-                  </button>
-                  <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
-                    Book Again
-                  </button>
+                <div className="p-4">
+                  <h4 className="font-semibold text-gray-900">{booking.turf?.name || 'Turf'}</h4>
+                  <div className="flex items-center text-gray-600 text-sm mt-1">
+                    <MapPin className="w-4 h-4 mr-1" />
+                    {booking.turf?.location || '—'}
+                  </div>
+                  <div className="flex items-center text-gray-600 text-sm mt-1">
+                    <Calendar className="w-4 h-4 mr-1" />
+                    {booking.bookingDate}
+                  </div>
+                  <div className="flex items-center text-gray-600 text-sm mt-1">
+                    <Clock className="w-4 h-4 mr-1" />
+                    {booking.startTime} - {booking.endTime}
+                  </div>
+                  <div className="flex items-center text-gray-600 text-sm mt-1">
+                    <CreditCard className="w-4 h-4 mr-1" />
+                    <span>₹{booking.amount || booking.price || 0}</span>
+                  </div>
+                  <div className="mt-2">
+                    <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs flex items-center">
+                      <CheckCircle className="w-3 h-3 mr-1" />
+                      {booking.status || 'completed'}
+                    </span>
+                  </div>
+                  <div className="mt-4 flex space-x-3">
+                    <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
+                      View Receipt
+                    </button>
+                    <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
+                      Book Again
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
+          </div>
+        ) : (
+          <div className="bg-gray-50 p-8 rounded-lg text-center">
+            <p className="text-gray-500 text-lg">No past bookings yet</p>
+            <p className="text-gray-400 mt-2">Your completed bookings will appear here</p>
           </div>
         ) : (
           <div className="text-center py-8 bg-white rounded-xl">

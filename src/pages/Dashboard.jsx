@@ -127,6 +127,7 @@ const Dashboard = () => {
     const now = new Date();
     return Array.isArray(bookings)
       ? bookings.filter(b => new Date(b.bookingDate) < now)
+          .sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)) // Sort by most recent first
       : [];
   }, [bookings]);
 
@@ -290,8 +291,11 @@ const Dashboard = () => {
           <div className="text-center py-8 bg-white rounded-xl">Loading…</div>
         ) : pastBookings.length > 0 ? (
           <div className="space-y-4">
+            <div className="bg-gray-50 p-3 rounded-lg mb-2">
+              <h4 className="text-sm font-medium text-gray-700">Recent Bookings</h4>
+            </div>
             {pastBookings.map((booking) => (
-              <div key={booking.id} className="bg-white rounded-xl shadow-md p-6 border-l-4 border-gray-300">
+              <div key={booking.id} className="bg-white rounded-xl shadow-md p-6 border-l-4 border-gray-300 hover:border-green-500 transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <div>
                     <h4 className="font-semibold text-gray-900">{booking.turf?.name || 'Turf'}</h4>
@@ -301,7 +305,7 @@ const Dashboard = () => {
                     </div>
                     <div className="flex items-center text-gray-600 text-sm mt-1">
                       <Calendar className="w-4 h-4 mr-1" />
-                      {booking.bookingDate}
+                      {formatDate(booking.bookingDate)}
                     </div>
                     <div className="flex items-center text-gray-600 text-sm mt-1">
                       <Clock className="w-4 h-4 mr-1" />
@@ -319,11 +323,11 @@ const Dashboard = () => {
                   </div>
                 </div>
                 <div className="mt-4 flex space-x-3">
-                  <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                    View Receipt
+                  <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors flex items-center">
+                    <CreditCard className="w-4 h-4 mr-1" /> View Receipt
                   </button>
-                  <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors">
-                    Book Again
+                  <button className="px-4 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors flex items-center">
+                    <Calendar className="w-4 h-4 mr-1" /> Book Again
                   </button>
                 </div>
               </div>

@@ -12,11 +12,6 @@ export const bookingService = {
     return response.data;
   },
 
-  getPastBookings: async () => {
-    const response = await api.get('/bookings/me');
-    return response.data;
-  },
-
   getMyBookingStats: async () => {
     const response = await api.get('/bookings/my-bookings/stats');
     return response.data;

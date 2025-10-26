@@ -27,9 +27,10 @@ const Home = () => {
         const data = await turfService.getAllTurfs();
         setTurfs(normalizeTurfs(data));
       } catch (err) {
-        const message = typeof err?.response?.data === 'string'
-          ? err.response.data
-          : (err?.response?.data?.message || err?.message || 'Failed to load turfs');
+        const message =
+          typeof err?.response?.data === 'string'
+            ? err.response.data
+            : err?.response?.data?.message || err?.message || 'Failed to load turfs';
         setError(message);
         setTurfs([]);
       } finally {
@@ -43,12 +44,15 @@ const Home = () => {
     try {
       setLoading(true);
       setError('');
-      const data = searchQuery ? await turfService.searchTurfs(searchQuery) : await turfService.getAllTurfs();
+      const data = searchQuery
+        ? await turfService.searchTurfs(searchQuery)
+        : await turfService.getAllTurfs();
       setTurfs(normalizeTurfs(data));
     } catch (err) {
-      const message = typeof err?.response?.data === 'string'
-        ? err.response.data
-        : (err?.response?.data?.message || err?.message || 'Search failed');
+      const message =
+        typeof err?.response?.data === 'string'
+          ? err.response.data
+          : err?.response?.data?.message || err?.message || 'Search failed';
       setError(message);
       setTurfs([]);
     } finally {
@@ -90,12 +94,16 @@ const Home = () => {
   return (
     <main className="min-h-screen">
       {/* ---------------- HERO SECTION ---------------- */}
-      <section className="relative bg-gradient-to-r from-green-600 to-blue-600 text-white" aria-label="Hero Section">
+      <section
+        className="relative bg-gradient-to-r from-green-600 to-blue-600 text-white"
+        aria-label="Hero Section"
+      >
         <div className="absolute inset-0 bg-black opacity-20"></div>
-        <div 
+        <div
           className="relative bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: 'url(https://images.pexels.com/photos/399187/pexels-photo-399187.jpeg)',
+            backgroundImage:
+              'url(https://images.pexels.com/photos/399187/pexels-photo-399187.jpeg)',
             backgroundBlendMode: 'overlay'
           }}
         >
@@ -108,26 +116,25 @@ const Home = () => {
                 Discover premium sports facilities and book instantly.
               </p>
 
-              {/* ✅ Unified Search Bar (Fully Responsive Capsule) */}
-              <div className="max-w-2xl mx-auto bg-white shadow-2xl rounded-full overflow-hidden">
-                <div className="flex items-center w-full">
-                  <Search className="w-5 h-5 text-gray-400 ml-4 flex-shrink-0" />
+              {/* ✅ Cross-platform optimized search bar */}
+              <div className="max-w-2xl mx-auto bg-white shadow-2xl rounded-full flex items-stretch overflow-hidden border border-gray-200">
+                <div className="flex items-center flex-1 px-3">
+                  <Search className="w-5 h-5 text-gray-400 mr-2 flex-shrink-0" />
                   <input
                     type="text"
                     placeholder="Search by city/area..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    className="flex-1 px-4 py-3 text-gray-900 bg-transparent focus:outline-none text-base sm:text-lg"
+                    className="w-full py-3 text-gray-900 bg-transparent focus:outline-none text-base sm:text-lg appearance-none"
                   />
-                  <button
-                    onClick={handleSearch}
-                    className="bg-green-600 text-white px-6 py-3 font-medium text-sm sm:text-base hover:bg-green-700 transition-all duration-200"
-                    style={{ borderRadius: '0 9999px 9999px 0' }}
-                  >
-                    Search
-                  </button>
                 </div>
+                <button
+                  onClick={handleSearch}
+                  className="bg-green-600 text-white px-6 md:px-8 py-3 font-medium text-sm sm:text-base hover:bg-green-700 transition-all duration-200 rounded-r-full focus:outline-none"
+                >
+                  Search
+                </button>
               </div>
             </div>
           </div>
@@ -138,7 +145,9 @@ const Home = () => {
       <section className="py-12 md:py-16 bg-white" aria-label="Features Section">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 md:mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Why Choose BookMyTurf?</h2>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Why Choose BookMyTurf?
+            </h2>
             <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
               We make sports booking simple, fast, and reliable
             </p>
@@ -166,7 +175,9 @@ const Home = () => {
           </div>
 
           {error && (
-            <div className="max-w-3xl mx-auto mb-6 p-3 rounded-lg bg-red-50 text-red-700 text-sm text-center">{error}</div>
+            <div className="max-w-3xl mx-auto mb-6 p-3 rounded-lg bg-red-50 text-red-700 text-sm text-center">
+              {error}
+            </div>
           )}
 
           {loading ? (
@@ -174,7 +185,8 @@ const Home = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {(Array.isArray(turfs) ? turfs : []).map((turf) => {
-                const defaultImage = 'https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg';
+                const defaultImage =
+                  'https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg';
                 let firstImage = '';
                 if (turf.images) {
                   if (turf.images.startsWith('data:image')) {
@@ -195,11 +207,15 @@ const Home = () => {
                         src={imageSrc}
                         alt={`${turf.name} turf facility`}
                         className="w-full h-48 object-cover rounded-t-lg"
-                        onError={(e) => { e.target.src = defaultImage; }}
+                        onError={(e) => {
+                          e.target.src = defaultImage;
+                        }}
                         loading="lazy"
                       />
                       <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full shadow-md">
-                        <span className="text-green-600 font-semibold">₹{turf.pricePerHour || turf.price}/hour</span>
+                        <span className="text-green-600 font-semibold">
+                          ₹{turf.pricePerHour || turf.price}/hour
+                        </span>
                       </div>
                     </div>
                     <div className="p-6">
@@ -209,7 +225,10 @@ const Home = () => {
                         <span>{turf.location}</span>
                       </div>
                       <div className="flex items-center mb-3">
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" aria-hidden="true" />
+                        <Star
+                          className="w-4 h-4 text-yellow-400 fill-current"
+                          aria-hidden="true"
+                        />
                         <span className="ml-1 text-sm text-gray-600">{turf.rating || 4.8}</span>
                       </div>
                       <div className="flex space-x-2">

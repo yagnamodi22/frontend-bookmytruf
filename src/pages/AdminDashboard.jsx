@@ -817,66 +817,86 @@ const AdminDashboard = () => {
 
         <div className="bg-white rounded-xl shadow-md mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex">
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'settings'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Settings
-              </button>
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'overview'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('pending')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors relative ${
-                  activeTab === 'pending'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Pending Requests
-                {safePending.length > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                    {safePending.length}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveTab('approved')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'approved'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Approved Turfs
-              </button>
-              <button
-                onClick={() => setActiveTab('users')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'users'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                User Management
-              </button>
-            </nav>
+            <div className="relative">
+              {/* Mobile dropdown selector */}
+              <div className="md:hidden p-2">
+                <select 
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="settings">Settings</option>
+                  <option value="overview">Overview</option>
+                  <option value="pending">
+                    Pending Requests {safePending.length > 0 ? `(${safePending.length})` : ''}
+                  </option>
+                  <option value="approved">Approved Turfs</option>
+                  <option value="users">User Management</option>
+                </select>
+              </div>
+              
+              {/* Desktop tabs */}
+              <nav className="hidden md:flex -mb-px overflow-x-auto">
+                <button
+                  onClick={() => setActiveTab('settings')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'settings'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Settings
+                </button>
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'overview'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => setActiveTab('pending')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors relative ${
+                    activeTab === 'pending'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Pending Requests
+                  {safePending.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {safePending.length}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('approved')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'approved'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Approved Turfs
+                </button>
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'users'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  User Management
+                </button>
+              </nav>
+            </div>
           </div>
 
-          <div className="p-6">
+          <div className="p-4 md:p-6">
             {activeTab === 'settings' && renderSettings()}
             {activeTab === 'overview' && renderOverview()}
             {activeTab === 'pending' && renderPendingRequests()}

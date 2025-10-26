@@ -397,57 +397,57 @@ const TurfOwnerDashboard = () => {
 
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <button
             onClick={() => setShowAddTurfForm(true)}
-            className="flex items-center justify-center space-x-2 p-4 border-2 border-dashed border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors"
+            className="flex flex-col sm:flex-row items-center justify-center sm:space-x-2 p-3 md:p-4 border-2 border-dashed border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors"
           >
-            <Plus className="w-6 h-6 text-green-600" />
-            <span className="text-green-600 font-medium">Add New Turf</span>
+            <Plus className="w-5 h-5 md:w-6 md:h-6 text-green-600 mb-1 sm:mb-0" />
+            <span className="text-green-600 font-medium text-sm md:text-base text-center sm:text-left">Add New Turf</span>
           </button>
           <button 
             onClick={() => setActiveTab('bookings')}
-            className="flex items-center justify-center space-x-2 p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+            className="flex flex-col sm:flex-row items-center justify-center sm:space-x-2 p-3 md:p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
           >
-            <Users className="w-6 h-6 text-blue-600" />
-            <span className="text-blue-600 font-medium">Manage Bookings</span>
+            <Users className="w-5 h-5 md:w-6 md:h-6 text-blue-600 mb-1 sm:mb-0" />
+            <span className="text-blue-600 font-medium text-sm md:text-base text-center sm:text-left">Manage Bookings</span>
           </button>
           <button 
             onClick={() => setShowPersonalDetailsModal(true)}
-            className="flex items-center justify-center space-x-2 p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+            className="flex flex-col sm:flex-row items-center justify-center sm:space-x-2 p-3 md:p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
           >
-            <User className="w-6 h-6 text-orange-600" />
-            <span className="text-orange-600 font-medium">Personal Details</span>
+            <User className="w-5 h-5 md:w-6 md:h-6 text-orange-600 mb-1 sm:mb-0" />
+            <span className="text-orange-600 font-medium text-sm md:text-base text-center sm:text-left">Personal Details</span>
           </button>
           <button 
             onClick={() => setActiveTab('analytics')}
-            className="flex items-center justify-center space-x-2 p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+            className="flex flex-col sm:flex-row items-center justify-center sm:space-x-2 p-3 md:p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
           >
-            <DollarSign className="w-6 h-6 text-purple-600" />
-            <span className="text-purple-600 font-medium">View Revenue</span>
+            <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-purple-600 mb-1 sm:mb-0" />
+            <span className="text-purple-600 font-medium text-sm md:text-base text-center sm:text-left">View Revenue</span>
           </button>
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recent Bookings</h3>
+      <div className="bg-white rounded-xl shadow-md p-4 md:p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3 md:mb-4">Recent Bookings</h3>
         {safeTurfs.length > 0 ? (
-          <div className="space-y-3">
+          <div className="space-y-2 md:space-y-3">
             {safeTurfs.slice(0, 3).map((turf) => (
-              <div key={turf.id} className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                <div>
-                  <h4 className="font-medium text-gray-900">{turf.name}</h4>
-                  <p className="text-sm text-gray-600">Example booking</p>
+              <div key={turf.id} className="flex items-center justify-between p-2 md:p-3 bg-green-50 rounded-lg">
+                <div className="overflow-hidden">
+                  <h4 className="font-medium text-gray-900 text-sm md:text-base truncate">{turf.name}</h4>
+                  <p className="text-xs md:text-sm text-gray-600">Example booking</p>
                 </div>
-                <div className="text-right">
-                  <div className="text-lg font-semibold text-green-600">₹800</div>
+                <div className="text-right ml-2">
+                  <div className="text-base md:text-lg font-semibold text-green-600">₹800</div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-8 text-gray-500">
-            <Calendar className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <div className="text-center py-6 md:py-8 text-gray-500">
+            <Calendar className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
             <p>No turfs yet. Add your first turf to get started!</p>
           </div>
         )}
@@ -506,35 +506,35 @@ const TurfOwnerDashboard = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-4">
                 <div>
-                  <span className="text-sm text-gray-600">Price:</span>
-                  <p className="font-semibold text-green-600">₹{turf.pricePerHour || turf.price}/hr</p>
+                  <span className="text-xs md:text-sm text-gray-600">Price:</span>
+                  <p className="font-semibold text-green-600 text-sm md:text-base">₹{turf.pricePerHour || turf.price}/hr</p>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-600">Rating:</span>
+                  <span className="text-xs md:text-sm text-gray-600">Rating:</span>
                   <div className="flex items-center">
-                    <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                    <span className="ml-1 font-semibold">{turf.rating || '—'}</span>
+                    <Star className="w-3 h-3 md:w-4 md:h-4 text-yellow-400 fill-current" />
+                    <span className="ml-1 font-semibold text-sm md:text-base">{turf.rating || '—'}</span>
                   </div>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-600">Bookings:</span>
-                  <p className="font-semibold">{turf.totalBookings || 0}</p>
+                  <span className="text-xs md:text-sm text-gray-600">Bookings:</span>
+                  <p className="font-semibold text-sm md:text-base">{turf.totalBookings || 0}</p>
                 </div>
                 <div>
-                  <span className="text-sm text-gray-600">Revenue:</span>
-                  <p className="font-semibold">₹{(turf.revenue || 0).toLocaleString()}</p>
+                  <span className="text-xs md:text-sm text-gray-600">Revenue:</span>
+                  <p className="font-semibold text-sm md:text-base">₹{(turf.revenue || 0).toLocaleString()}</p>
                 </div>
               </div>
 
-              <div className="flex space-x-3">
-                <button onClick={() => handleOpenViewTurf(turf.id)} className="flex items-center space-x-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors">
-                  <Eye className="w-4 h-4" />
+              <div className="flex space-x-2 md:space-x-3">
+                <button onClick={() => handleOpenViewTurf(turf.id)} className="flex items-center space-x-1 px-2 md:px-3 py-1.5 md:py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-xs md:text-sm">
+                  <Eye className="w-3 h-3 md:w-4 md:h-4" />
                   <span>View</span>
                 </button>
-                <button onClick={() => handleOpenEditTurf(turf)} className="flex items-center space-x-1 px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors">
-                  <Edit className="w-4 h-4" />
+                <button onClick={() => handleOpenEditTurf(turf)} className="flex items-center space-x-1 px-2 md:px-3 py-1.5 md:py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-xs md:text-sm">
+                  <Edit className="w-3 h-3 md:w-4 md:h-4" />
                   <span>Edit</span>
                 </button>
               </div>
@@ -604,14 +604,14 @@ const TurfOwnerDashboard = () => {
   const renderAddTurfForm = () => (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-2xl font-bold text-gray-900">Add New Turf</h3>
+        <div className="p-4 md:p-6">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900">Add New Turf</h3>
             <button
               onClick={() => setShowAddTurfForm(false)}
               className="text-gray-500 hover:text-gray-700"
             >
-              <XCircle className="w-6 h-6" />
+              <XCircle className="w-5 h-5 md:w-6 md:h-6" />
             </button>
           </div>
 
@@ -619,16 +619,16 @@ const TurfOwnerDashboard = () => {
             <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
           )}
 
-          <form onSubmit={handleSubmitRequest} className="space-y-6">
+          <form onSubmit={handleSubmitRequest} className="space-y-4 md:space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">
                 Turf Name *
               </label>
               <input
                 type="text"
                 value={formData.turfName}
                 onChange={(e) => handleInputChange('turfName', e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
                 placeholder="Enter turf name"
                 required
               />
@@ -797,48 +797,65 @@ const TurfOwnerDashboard = () => {
 
         <div className="bg-white rounded-xl shadow-md mb-6">
           <div className="border-b border-gray-200">
-            <nav className="flex">
-              <button
-                onClick={() => setActiveTab('overview')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'overview'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Overview
-              </button>
-              <button
-                onClick={() => setActiveTab('turfs')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'turfs'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                My Turfs
-              </button>
-              <button
-                onClick={() => setActiveTab('bookings')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'bookings'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Bookings
-              </button>
-              <button
-                onClick={() => setActiveTab('analytics')}
-                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'analytics'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                Analytics
-              </button>
-            </nav>
+            <div className="relative">
+              {/* Mobile dropdown selector */}
+              <div className="md:hidden p-2">
+                <select 
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="overview">Overview</option>
+                  <option value="turfs">My Turfs</option>
+                  <option value="bookings">Bookings</option>
+                  <option value="analytics">Analytics</option>
+                </select>
+              </div>
+              
+              {/* Desktop tabs */}
+              <nav className="hidden md:flex -mb-px overflow-x-auto">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'overview'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => setActiveTab('turfs')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'turfs'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  My Turfs
+                </button>
+                <button
+                  onClick={() => setActiveTab('bookings')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'bookings'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Bookings
+                </button>
+                <button
+                  onClick={() => setActiveTab('analytics')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'analytics'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Analytics
+                </button>
+              </nav>
+            </div>
           </div>
 
           <div className="p-6">

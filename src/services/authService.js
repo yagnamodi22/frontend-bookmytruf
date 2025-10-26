@@ -51,9 +51,32 @@ export const authService = {
     return response.data;
   },
 
-  logout: () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+  logout: async () => {
+    try {
+      // Call backend logout endpoint
+      await api.post('/auth/logout', {}, { credentials: 'include' });
+    } catch (error) {
+      console.error('Logout API error:', error);
+      // Continue with local cleanup even if API call fails
+    } finally {
+      // Clear localStorage
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      
+      // Clear sessionStorage
+      sessionStorage.clear();
+      
+      // Clear any application cache if available
+      if (caches && typeof caches.keys === 'function') {
+        try {
+          caches.keys().then(keys => {
+            keys.forEach(key => caches.delete(key));
+          });
+        } catch (e) {
+          console.error('Cache clearing error:', e);
+        }
+      }
+    }
   },
 
   getCurrentUser: () => {

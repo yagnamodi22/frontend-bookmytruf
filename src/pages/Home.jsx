@@ -89,9 +89,10 @@ const Home = () => {
 
   return (
     <main className="min-h-screen">
+      {/* Hero Section */}
       <section className="relative bg-gradient-to-r from-green-600 to-blue-600 text-white" aria-label="Hero Section">
         <div className="absolute inset-0 bg-black opacity-20"></div>
-        <div 
+        <div
           className="relative bg-cover bg-center bg-no-repeat"
           style={{
             backgroundImage: 'url(https://images.pexels.com/photos/399187/pexels-photo-399187.jpeg)',
@@ -106,34 +107,38 @@ const Home = () => {
               <p className="text-lg sm:text-xl md:text-2xl mb-6 md:mb-8 text-gray-100">
                 Discover premium sports facilities and book instantly.
               </p>
+
+              {/* ✅ Improved Search Bar */}
               <div className="max-w-2xl mx-auto bg-white rounded-full p-2 shadow-2xl">
-                <div className="flex flex-col sm:flex-row items-center">
-                  <div className="flex items-center w-full">
-                    <Search className="w-6 h-6 text-gray-400 ml-4 flex-shrink-0" />
+                <div className="flex flex-col sm:flex-row items-center w-full">
+                  <div className="flex items-center w-full sm:w-auto flex-1">
+                    <Search className="w-5 h-5 text-gray-400 ml-3 flex-shrink-0" />
                     <input
                       type="text"
                       placeholder="Search by city/area..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      className="flex-1 px-4 py-3 text-gray-900 bg-transparent focus:outline-none text-lg w-full"
+                      className="flex-1 px-4 py-2 text-gray-900 bg-transparent focus:outline-none text-base sm:text-lg w-full rounded-full"
                       aria-label="Search turfs by location"
                     />
                   </div>
-                  <button 
-                    onClick={handleSearch} 
-                    className="bg-green-600 text-white w-full sm:w-auto px-6 py-2.5 mt-2 sm:mt-0 sm:ml-2 rounded-full hover:bg-green-700 transition-all duration-200 font-medium text-base shadow-md flex items-center justify-center"
+                  <button
+                    onClick={handleSearch}
+                    className="bg-green-600 text-white w-full sm:w-auto px-5 py-1.5 mt-2 sm:mt-0 sm:ml-2 rounded-full hover:bg-green-700 transition-all duration-200 font-medium text-sm sm:text-base shadow-md flex items-center justify-center"
                     aria-label="Search for turfs"
                   >
                     Search
                   </button>
                 </div>
               </div>
+              {/* ✅ End Search Bar */}
             </div>
           </div>
         </div>
       </section>
 
+      {/* Features Section */}
       <section className="py-12 md:py-16 bg-white" aria-label="Features Section">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 md:mb-12">
@@ -156,6 +161,7 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Available Turfs */}
       <section className="py-12 md:py-16 bg-gray-50" aria-label="Available Turfs">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-8 md:mb-12">
@@ -171,69 +177,63 @@ const Home = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {(Array.isArray(turfs) ? turfs : []).map((turf) => {
-                // Use getImageSrc utility to handle image paths properly
                 const defaultImage = 'https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg';
-                
-                // Handle images - check if it's base64 or comma-separated
                 let firstImage = '';
                 if (turf.images) {
                   if (turf.images.startsWith('data:image')) {
-                    // Single base64 image
                     firstImage = turf.images;
                   } else {
-                    // Comma-separated images, take the first one
                     firstImage = turf.images.split(',')[0].trim();
                   }
                 }
-                
                 const imageSrc = getImageSrc(firstImage, defaultImage);
-                
+
                 return (
-                <article key={turf.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
-                  <div className="relative">
-                    <img 
-                      src={imageSrc}
-                      alt={`${turf.name} turf facility`}
-                      className="w-full h-48 object-cover rounded-t-lg"
-                      onError={(e) => {
-                        e.target.src = defaultImage;
-                      }}
-                      loading="lazy"
-                    />
-                    <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full shadow-md">
-                      <span className="text-green-600 font-semibold">₹{turf.pricePerHour || turf.price}/hour</span>
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{turf.name}</h3>
-                    <div className="flex items-center text-gray-600 mb-3">
-                      <MapPin className="w-4 h-4 mr-1" aria-hidden="true" />
-                      <span>{turf.location}</span>
-                    </div>
-                    <div className="flex items-center mb-3">
-                      <div className="flex items-center">
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" aria-hidden="true" />
-                        <span className="ml-1 text-sm text-gray-600">{turf.rating || 4.8}</span>
+                  <article key={turf.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                    <div className="relative">
+                      <img
+                        src={imageSrc}
+                        alt={`${turf.name} turf facility`}
+                        className="w-full h-48 object-cover rounded-t-lg"
+                        onError={(e) => {
+                          e.target.src = defaultImage;
+                        }}
+                        loading="lazy"
+                      />
+                      <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full shadow-md">
+                        <span className="text-green-600 font-semibold">₹{turf.pricePerHour || turf.price}/hour</span>
                       </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Link
-                        to={`/turf/${turf.id}`}
-                        className="flex-1 bg-gray-100 text-gray-800 py-2 px-4 rounded-lg text-center hover:bg-gray-200 transition-colors duration-200"
-                        aria-label={`View details for ${turf.name}`}
-                      >
-                        View Details
-                      </Link>
-                      <button
-                        onClick={() => handleBookNow(turf.id)}
-                        className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg text-center hover:bg-green-700 transition-colors duration-200"
-                        aria-label={`Book ${turf.name} now`}
-                      >
-                        Book Now
-                      </button>
+                    <div className="p-6">
+                      <h3 className="text-xl font-bold text-gray-900 mb-2">{turf.name}</h3>
+                      <div className="flex items-center text-gray-600 mb-3">
+                        <MapPin className="w-4 h-4 mr-1" aria-hidden="true" />
+                        <span>{turf.location}</span>
+                      </div>
+                      <div className="flex items-center mb-3">
+                        <div className="flex items-center">
+                          <Star className="w-4 h-4 text-yellow-400 fill-current" aria-hidden="true" />
+                          <span className="ml-1 text-sm text-gray-600">{turf.rating || 4.8}</span>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Link
+                          to={`/turf/${turf.id}`}
+                          className="flex-1 bg-gray-100 text-gray-800 py-2 px-4 rounded-lg text-center hover:bg-gray-200 transition-colors duration-200"
+                          aria-label={`View details for ${turf.name}`}
+                        >
+                          View Details
+                        </Link>
+                        <button
+                          onClick={() => handleBookNow(turf.id)}
+                          className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg text-center hover:bg-green-700 transition-colors duration-200"
+                          aria-label={`Book ${turf.name} now`}
+                        >
+                          Book Now
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                </article>
+                  </article>
                 );
               })}
               {(!turfs || !Array.isArray(turfs) || turfs.length === 0) && !loading && (
@@ -244,6 +244,7 @@ const Home = () => {
         </div>
       </section>
 
+      {/* Stats Section */}
       <section className="py-12 md:py-16 bg-green-600 text-white" aria-label="Statistics">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 text-center">

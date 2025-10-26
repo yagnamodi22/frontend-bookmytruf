@@ -88,8 +88,8 @@ const Home = () => {
   ];
 
   return (
-    <div className="min-h-screen">
-      <section className="relative bg-gradient-to-r from-green-600 to-blue-600 text-white">
+    <main className="min-h-screen">
+      <section className="relative bg-gradient-to-r from-green-600 to-blue-600 text-white" aria-label="Hero Section">
         <div className="absolute inset-0 bg-black opacity-20"></div>
         <div 
           className="relative bg-cover bg-center bg-no-repeat"
@@ -98,26 +98,33 @@ const Home = () => {
             backgroundBlendMode: 'overlay'
           }}
         >
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-24">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
             <div className="max-w-4xl mx-auto text-center">
-              <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+              <h1 className="text-4xl sm:text-5xl md:text-7xl font-bold mb-4 md:mb-6 leading-tight">
                 Book Your <span className="text-yellow-400">Dream Turf</span>
               </h1>
-              <p className="text-xl md:text-2xl mb-8 text-gray-100">
+              <p className="text-lg sm:text-xl md:text-2xl mb-6 md:mb-8 text-gray-100">
                 Discover premium sports facilities and book instantly.
               </p>
               <div className="max-w-2xl mx-auto bg-white rounded-full p-2 shadow-2xl">
-                <div className="flex items-center">
-                  <Search className="w-6 h-6 text-gray-400 ml-4" />
-                  <input
-                    type="text"
-                    placeholder="Search by city/area..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    className="flex-1 px-4 py-3 text-gray-900 bg-transparent focus:outline-none text-lg"
-                  />
-                  <button onClick={handleSearch} className="bg-green-600 text-white px-8 py-3 rounded-full hover:bg-green-700 transition-colors duration-200 font-semibold">
+                <div className="flex flex-col sm:flex-row items-center">
+                  <div className="flex items-center w-full">
+                    <Search className="w-6 h-6 text-gray-400 ml-4 flex-shrink-0" />
+                    <input
+                      type="text"
+                      placeholder="Search by city/area..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                      className="flex-1 px-4 py-3 text-gray-900 bg-transparent focus:outline-none text-lg w-full"
+                      aria-label="Search turfs by location"
+                    />
+                  </div>
+                  <button 
+                    onClick={handleSearch} 
+                    className="bg-green-600 text-white w-full sm:w-auto px-8 py-3 mt-2 sm:mt-0 rounded-full hover:bg-green-700 transition-colors duration-200 font-semibold"
+                    aria-label="Search for turfs"
+                  >
                     Search
                   </button>
                 </div>
@@ -127,15 +134,15 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="py-16 bg-white">
+      <section className="py-12 md:py-16 bg-white" aria-label="Features Section">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Why Choose BookMyTurf?</h2>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <div className="text-center mb-8 md:mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Why Choose BookMyTurf?</h2>
+            <p className="text-lg md:text-xl text-gray-600 max-w-2xl mx-auto">
               We make sports booking simple, fast, and reliable
             </p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
             {features.map((feature, index) => (
               <div key={index} className="text-center group">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-green-600 group-hover:text-white transition-all duration-300">
@@ -149,11 +156,11 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="py-16 bg-gray-50">
+      <section className="py-12 md:py-16 bg-gray-50" aria-label="Available Turfs">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-4xl font-bold text-gray-900 mb-4">Available Turfs</h2>
-            <p className="text-xl text-gray-600">Browse and book your favorite venue</p>
+          <div className="text-center mb-8 md:mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Available Turfs</h2>
+            <p className="text-lg md:text-xl text-gray-600">Browse and book your favorite venue</p>
           </div>
 
           {error && (
@@ -162,7 +169,7 @@ const Home = () => {
           {loading ? (
             <div className="text-center text-gray-600">Loading…</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {(Array.isArray(turfs) ? turfs : []).map((turf) => {
                 // Use getImageSrc utility to handle image paths properly
                 const defaultImage = 'https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg';
@@ -182,15 +189,16 @@ const Home = () => {
                 const imageSrc = getImageSrc(firstImage, defaultImage);
                 
                 return (
-                <div key={turf.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
+                <article key={turf.id} className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-2">
                   <div className="relative">
                     <img 
                       src={imageSrc}
-                      alt={`${turf.name} turf`}
+                      alt={`${turf.name} turf facility`}
                       className="w-full h-48 object-cover rounded-t-lg"
                       onError={(e) => {
                         e.target.src = defaultImage;
                       }}
+                      loading="lazy"
                     />
                     <div className="absolute top-4 right-4 bg-white px-3 py-1 rounded-full shadow-md">
                       <span className="text-green-600 font-semibold">₹{turf.pricePerHour || turf.price}/hour</span>
@@ -199,12 +207,12 @@ const Home = () => {
                   <div className="p-6">
                     <h3 className="text-xl font-bold text-gray-900 mb-2">{turf.name}</h3>
                     <div className="flex items-center text-gray-600 mb-3">
-                      <MapPin className="w-4 h-4 mr-1" />
+                      <MapPin className="w-4 h-4 mr-1" aria-hidden="true" />
                       <span>{turf.location}</span>
                     </div>
                     <div className="flex items-center mb-3">
                       <div className="flex items-center">
-                        <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                        <Star className="w-4 h-4 text-yellow-400 fill-current" aria-hidden="true" />
                         <span className="ml-1 text-sm text-gray-600">{turf.rating || 4.8}</span>
                       </div>
                     </div>
@@ -212,18 +220,20 @@ const Home = () => {
                       <Link
                         to={`/turf/${turf.id}`}
                         className="flex-1 bg-gray-100 text-gray-800 py-2 px-4 rounded-lg text-center hover:bg-gray-200 transition-colors duration-200"
+                        aria-label={`View details for ${turf.name}`}
                       >
                         View Details
                       </Link>
                       <button
                         onClick={() => handleBookNow(turf.id)}
                         className="flex-1 bg-green-600 text-white py-2 px-4 rounded-lg text-center hover:bg-green-700 transition-colors duration-200"
+                        aria-label={`Book ${turf.name} now`}
                       >
                         Book Now
                       </button>
                     </div>
                   </div>
-                </div>
+                </article>
                 );
               })}
               {(!turfs || !Array.isArray(turfs) || turfs.length === 0) && !loading && (
@@ -234,29 +244,29 @@ const Home = () => {
         </div>
       </section>
 
-      <section className="py-16 bg-green-600 text-white">
+      <section className="py-12 md:py-16 bg-green-600 text-white" aria-label="Statistics">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 text-center">
             <div>
-              <div className="text-4xl font-bold mb-2">50+</div>
+              <div className="text-3xl md:text-4xl font-bold mb-2">50+</div>
               <div className="text-green-100">Turfs Available</div>
             </div>
             <div>
-              <div className="text-4xl font-bold mb-2">1000+</div>
+              <div className="text-3xl md:text-4xl font-bold mb-2">1000+</div>
               <div className="text-green-100">Happy Customers</div>
             </div>
             <div>
-              <div className="text-4xl font-bold mb-2">5+</div>
+              <div className="text-3xl md:text-4xl font-bold mb-2">5+</div>
               <div className="text-green-100">Sports Supported</div>
             </div>
             <div>
-              <div className="text-4xl font-bold mb-2">24/7</div>
+              <div className="text-3xl md:text-4xl font-bold mb-2">24/7</div>
               <div className="text-green-100">Customer Support</div>
             </div>
           </div>
         </div>
       </section>
-    </div>
+    </main>
   );
 };
 

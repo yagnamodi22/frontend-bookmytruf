@@ -179,33 +179,37 @@ const Header = ({
 
         {/* Mobile Navigation */}
         {isMenuOpen && (
-          <div className="md:hidden py-4 border-t border-gray-200">
-            <div className="space-y-4">
+          <div className="md:hidden py-4 border-t border-gray-200 max-h-[80vh] overflow-y-auto">
+            <nav className="space-y-4" aria-label="Mobile Navigation">
               <Link 
                 to="/" 
-                className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                className="block px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md text-lg"
                 onClick={() => setIsMenuOpen(false)}
+                aria-label="Home"
               >
                 Home
               </Link>
               <Link 
                 to="/turfs" 
-                className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                className="block px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md text-lg"
                 onClick={() => setIsMenuOpen(false)}
+                aria-label="Turfs"
               >
                 Turfs
               </Link>
               <Link 
                 to="/about" 
-                className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                className="block px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md text-lg"
                 onClick={() => setIsMenuOpen(false)}
+                aria-label="About"
               >
                 About
               </Link>
               <Link 
                 to="/contact" 
-                className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                className="block px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md text-lg"
                 onClick={() => setIsMenuOpen(false)}
+                aria-label="Contact"
               >
                 Contact
               </Link>
@@ -219,44 +223,55 @@ const Header = ({
                         ? '/turf-owner/dashboard'
                         : '/dashboard'
                     }
-                    className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                    className="block px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md text-lg"
                     onClick={() => setIsMenuOpen(false)}
+                    aria-label="Dashboard"
                   >
-                    Dashboard
+                    <div className="flex items-center">
+                      <User className="w-5 h-5 mr-2" />
+                      <span>Dashboard</span>
+                    </div>
                   </Link>
                   <button
                     onClick={() => handleLogout(currentUser.type)}
-                    className="block w-full text-left px-4 py-2 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-md"
+                    className="block w-full text-left px-4 py-3 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-md text-lg"
+                    aria-label="Logout"
                   >
-                    Logout
+                    <div className="flex items-center">
+                      <LogOut className="w-5 h-5 mr-2" />
+                      <span>Logout</span>
+                    </div>
                   </button>
                 </>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-3 mt-4">
                   <Link
                     to="/login"
-                    className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md"
+                    className="block px-4 py-3 text-gray-700 hover:text-green-600 hover:bg-gray-50 rounded-md text-lg"
                     onClick={() => setIsMenuOpen(false)}
+                    aria-label="Customer Login"
                   >
                     Customer Login
                   </Link>
                   <Link
                     to="/turf-owner/login"
-                    className="block px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    className="block px-4 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-lg text-center"
                     onClick={() => setIsMenuOpen(false)}
+                    aria-label="Turf Owner Login"
                   >
                     Turf Owner
                   </Link>
                   <Link
                     to="/admin/login"
-                    className="block px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                    className="block px-4 py-3 bg-red-600 text-white rounded-md hover:bg-red-700 text-lg text-center"
                     onClick={() => setIsMenuOpen(false)}
+                    aria-label="Admin Login"
                   >
                     Admin
                   </Link>
                 </div>
               )}
-            </div>
+            </nav>
           </div>
         )}
       </div>

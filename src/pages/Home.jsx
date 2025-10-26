@@ -106,26 +106,27 @@ const Home = () => {
               <p className="text-lg sm:text-xl md:text-2xl mb-6 md:mb-8 text-gray-100">
                 Discover premium sports facilities and book instantly.
               </p>
-              <div className="max-w-2xl mx-auto bg-white rounded-full p-2 shadow-2xl">
+              <div className="max-w-2xl mx-auto bg-white rounded-full p-1.5 shadow-2xl">
                 <div className="flex flex-col sm:flex-row items-center">
                   <div className="flex items-center w-full">
-                    <Search className="w-6 h-6 text-gray-400 ml-4 flex-shrink-0" />
+                    <Search className="w-5 h-5 text-gray-400 ml-3 flex-shrink-0" />
                     <input
                       type="text"
                       placeholder="Search by city/area..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                      className="flex-1 px-4 py-3 text-gray-900 bg-transparent focus:outline-none text-lg w-full"
+                      className="flex-1 px-3 py-2.5 text-gray-900 bg-transparent focus:outline-none text-base w-full"
                       aria-label="Search turfs by location"
                     />
                   </div>
                   <button 
                     onClick={handleSearch} 
-                    className="bg-green-600 text-white w-full sm:w-auto px-6 py-2.5 mt-2 sm:mt-0 rounded-full hover:bg-green-700 transition-colors duration-200 font-medium text-sm sm:text-base flex items-center justify-center"
+                    className="bg-green-500 text-white w-full sm:w-auto px-4 py-1.5 mt-1 sm:mt-0 rounded-full hover:bg-green-600 transition-colors duration-200 text-sm flex items-center justify-center shadow-sm"
+                    style={{maxWidth: "120px", margin: "0 auto 4px auto"}}
                     aria-label="Search for turfs"
                   >
-                    <Search className="w-4 h-4 mr-1.5" />
+                    <Search className="w-3.5 h-3.5 mr-1" />
                     Search
                   </button>
                 </div>

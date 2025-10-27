@@ -186,8 +186,22 @@ const Booking = () => {
     if (bookedStarts.includes(startHHmm)) return; // cannot select booked
     
     // Check if slot is in the past (for today's date only)
-    const isPastSlot = bookingData.date === new Date().toISOString().split('T')[0] && 
-      new Date(`${bookingData.date}T${startTime}:00`) < new Date();
+    let isPastSlot = false;
+    if (bookingData.date === new Date().toISOString().split('T')[0]) {
+      const now = new Date();
+      const slotStartTime = new Date(`${bookingData.date}T${startTime}:00`);
+      
+      // For slots between 00:00 and 03:00, they belong to the next day logically
+      const hourNum = parseInt(startTime.split(':')[0], 10);
+      if (hourNum >= 0 && hourNum < 3) {
+        // These are late night slots (after midnight)
+        // They should only be considered past if we're already in the next day and past their time
+        isPastSlot = false; // These slots are for tomorrow, so they're not past
+      } else {
+        // Regular slots - check if current time is past the slot start time
+        isPastSlot = slotStartTime < now;
+      }
+    }
     if (isPastSlot) return; // cannot select past slots
     
     setBookingData(prev => {
@@ -340,8 +354,21 @@ const Booking = () => {
                 const isSelected = bookingData.selectedSlots.includes(slot);
                 
                 // Check if slot is in the past (for today's date only)
-                const isPastSlot = bookingData.date === new Date().toISOString().split('T')[0] && 
-                  new Date(`${bookingData.date}T${startTime}:00`) < new Date();
+                let isPastSlot = false;
+                if (bookingData.date === new Date().toISOString().split('T')[0]) {
+                  const now = new Date();
+                  const slotStartTime = new Date(`${bookingData.date}T${startTime}:00`);
+                  
+                  // For slots between 00:00 and 03:00, they belong to the next day logically
+                  const hourNum = parseInt(startTime.split(':')[0], 10);
+                  if (hourNum >= 0 && hourNum < 3) {
+                    // These are late night slots (after midnight)
+                    isPastSlot = false; // These slots are for tomorrow, so they're not past
+                  } else {
+                    // Regular slots - check if current time is past the slot start time
+                    isPastSlot = slotStartTime < now;
+                  }
+                }
                 
                 return (
                   <button

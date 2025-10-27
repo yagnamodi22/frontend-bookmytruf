@@ -629,16 +629,16 @@ const TurfOwnerDashboard = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {b.user?.firstName} {b.user?.lastName}
+                          {b.userName || 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{b.user?.phone || 'N/A'}</div>
-                        <div className="text-sm text-gray-500">{b.user?.email || 'N/A'}</div>
+                        <div className="text-sm text-gray-900">{b.userPhone || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">{b.userEmail || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {b.payment?.method || 'N/A'}
+                          {b.paymentMethod || 'N/A'}
                         </div>
                         <div className="text-sm text-gray-500">
                           ₹{b.totalAmount || 'N/A'}

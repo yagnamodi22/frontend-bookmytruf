@@ -45,6 +45,10 @@ const TurfOwnerDashboard = () => {
   const [existingImagesString, setExistingImagesString] = useState('');
   const [turfBookings, setTurfBookings] = useState([]);
   const [loadingBookings, setLoadingBookings] = useState(false);
+  const [bookingPage, setBookingPage] = useState(0);
+  const [bookingSize, setBookingSize] = useState(10);
+  const [bookingTotalPages, setBookingTotalPages] = useState(0);
+  const [bookingTotalCount, setBookingTotalCount] = useState(0);
   const [userProfile, setUserProfile] = useState({
     firstName: '',
     lastName: '',
@@ -96,19 +100,35 @@ const TurfOwnerDashboard = () => {
     try {
       setLoadingBookings(true);
       setError('');
-      const data = await bookingService.getBookingsByTurf(turfId);
-      // Sort bookings by date and time
-      const sortedBookings = normalize(data).sort((a, b) => {
-        // First sort by date
-        const dateComparison = new Date(a.bookingDate) - new Date(b.bookingDate);
-        if (dateComparison !== 0) return dateComparison;
-        // Then sort by start time
-        return a.startTime.localeCompare(b.startTime);
-      });
-      setTurfBookings(sortedBookings);
+      const data = await bookingService.getBookingsByTurfPaginated(turfId, bookingPage, bookingSize);
+      
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.content)) {
+          // Paginated response
+          setTurfBookings(normalize(data.content));
+          setBookingTotalPages(data.totalPages || 0);
+          setBookingTotalCount(data.totalElements || 0);
+        } else if (Array.isArray(data)) {
+          // Direct array response (fallback)
+          setTurfBookings(normalize(data));
+          setBookingTotalPages(1);
+          setBookingTotalCount(data.length || 0);
+        } else {
+          // Fallback
+          setTurfBookings([]);
+          setBookingTotalPages(0);
+          setBookingTotalCount(0);
+        }
+      } else {
+        setTurfBookings([]);
+        setBookingTotalPages(0);
+        setBookingTotalCount(0);
+      }
     } catch (err) {
       setError(err?.response?.data || 'Failed to load bookings');
       setTurfBookings([]);
+      setBookingTotalPages(0);
+      setBookingTotalCount(0);
     } finally {
       setLoadingBookings(false);
     }
@@ -147,7 +167,7 @@ const TurfOwnerDashboard = () => {
     if (selectedTurfId) {
       loadBookingsForSelected(selectedTurfId);
     }
-  }, [selectedTurfId]);
+  }, [selectedTurfId, bookingPage, bookingSize]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -597,6 +617,7 @@ const TurfOwnerDashboard = () => {
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Info</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -636,6 +657,81 @@ const TurfOwnerDashboard = () => {
                   ))}
                 </tbody>
               </table>
+              
+              {/* Pagination Controls */}
+              <div className="p-4 flex items-center justify-between border-t">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => { if (bookingPage > 0) { setBookingPage(bookingPage - 1); } }}
+                    disabled={bookingPage === 0}
+                    className={`px-3 py-2 rounded-md text-sm ${bookingPage === 0 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => { if (bookingPage + 1 < bookingTotalPages) { setBookingPage(bookingPage + 1); } }}
+                    disabled={bookingPage + 1 >= bookingTotalPages}
+                    className={`px-3 py-2 rounded-md text-sm ${bookingPage + 1 >= bookingTotalPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                  >
+                    Next
+                  </button>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-600">
+                    Page {bookingPage + 1} of {Math.max(1, bookingTotalPages)}
+                  </span>
+                  
+                  {bookingTotalPages > 1 && (
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm text-gray-600">Go to:</label>
+                      <select
+                        value={bookingPage}
+                        onChange={(e) => setBookingPage(parseInt(e.target.value, 10))}
+                        className="border rounded-md px-2 py-1 text-sm"
+                      >
+                        {Array.from({ length: bookingTotalPages }, (_, i) => (
+                          <option key={i} value={i}>Page {i + 1}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm text-gray-600">Show:</label>
+                    <select
+                      value={bookingSize}
+                      onChange={(e) => {
+                        setBookingSize(parseInt(e.target.value, 10));
+                        setBookingPage(0); // Reset to first page when changing page size
+                      }}
+                      className="border rounded-md px-2 py-1 text-sm"
+                    >
+                      <option value="5">5 per page</option>
+                      <option value="10">10 per page</option>
+                      <option value="20">20 per page</option>
+                      <option value="50">50 per page</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-4 flex items-center justify-end border-t">
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm text-gray-600">Page Size:</label>
+                  <select
+                    value={bookingSize}
+                    onChange={(e) => {
+                      const size = parseInt(e.target.value, 10);
+                      setBookingSize(size);
+                      setBookingPage(0); // Reset to first page when changing page size
+                    }}
+                    className="border rounded-md px-2 py-1"
+                  >
+                    {[5, 10, 20, 50].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
             </div>
           ) : selectedTurfId ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg text-gray-600">No bookings for this turf</div>

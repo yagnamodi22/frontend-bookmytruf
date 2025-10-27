@@ -61,5 +61,12 @@ export const bookingService = {
   getBookingsByTurf: async (turfId) => {
     const response = await api.get(`/bookings/turf/${turfId}`);
     return response.data;
+  },
+  
+  getBookingsByTurfPaginated: async (turfId, page = 0, size = 10) => {
+    const response = await api.get(`/bookings/turf/${turfId}/paginated`, {
+      params: { page, size }
+    });
+    return response.data;
   }
 };

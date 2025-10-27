@@ -1,11 +1,12 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
+import api from './services/api'; // Ensure you've configured api.js with axios and withCredentials:true
 
-// Lazy load page components for better performance
+// Lazy load page components
 const Home = lazy(() => import('./pages/Home'));
 const Turfs = lazy(() => import('./pages/Turfs'));
 const TurfDetails = lazy(() => import('./pages/TurfDetails'));
@@ -27,12 +28,45 @@ function App() {
   const [isOwnerLoggedIn, setIsOwnerLoggedIn] = useState(false);
   const [owner, setOwner] = useState(null);
 
+  // On mount, check if user has a valid session via cookie by fetching profile
+  useEffect(() => {
+    api.get('/auth/profile')
+      .then(res => {
+        if (res.data && res.data.email) {
+          setIsLoggedIn(true);
+          setUser(res.data);
+          const role = (res.data.role || '').toLowerCase();
+          if (role === 'admin') {
+            setIsAdminLoggedIn(true);
+            setAdmin(res.data);
+          } else if (role === 'owner') {
+            setIsOwnerLoggedIn(true);
+            setOwner(res.data);
+          }
+        } else {
+          clearAllAuthState();
+        }
+      })
+      .catch(() => {
+        clearAllAuthState();
+      });
+  }, []);
+
+  const clearAllAuthState = () => {
+    setIsLoggedIn(false);
+    setUser(null);
+    setIsAdminLoggedIn(false);
+    setAdmin(null);
+    setIsOwnerLoggedIn(false);
+    setOwner(null);
+  };
+
   return (
     <Router>
       <div className="min-h-screen bg-gray-50">
-        <Header 
-          isLoggedIn={isLoggedIn} 
-          user={user} 
+        <Header
+          isLoggedIn={isLoggedIn}
+          user={user}
           setIsLoggedIn={setIsLoggedIn}
           isAdminLoggedIn={isAdminLoggedIn}
           admin={admin}

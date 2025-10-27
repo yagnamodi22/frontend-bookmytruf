@@ -6,13 +6,14 @@ const BASE_URL = `${API_BASE}/api`;
 
 const api = axios.create({
   baseURL: BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // **Ensure cookies are sent with every request**
 });
 
-// Add request interceptor for JWT token
+// Add request interceptor for JWT token from localStorage (optional, can be omitted if using only cookies)
 api.interceptors.request.use(
   function(config) {
     const token = localStorage.getItem('token');

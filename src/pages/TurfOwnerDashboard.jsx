@@ -638,7 +638,7 @@ const TurfOwnerDashboard = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {b.paymentMethod || 'N/A'}
+                          {b.paymentMode || 'N/A'}
                         </div>
                         <div className="text-sm text-gray-500">
                           ₹{b.totalAmount || 'N/A'}

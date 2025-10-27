@@ -97,7 +97,15 @@ const TurfOwnerDashboard = () => {
       setLoadingBookings(true);
       setError('');
       const data = await bookingService.getBookingsByTurf(turfId);
-      setTurfBookings(normalize(data));
+      // Sort bookings by date and time
+      const sortedBookings = normalize(data).sort((a, b) => {
+        // First sort by date
+        const dateComparison = new Date(a.bookingDate) - new Date(b.bookingDate);
+        if (dateComparison !== 0) return dateComparison;
+        // Then sort by start time
+        return a.startTime.localeCompare(b.startTime);
+      });
+      setTurfBookings(sortedBookings);
     } catch (err) {
       setError(err?.response?.data || 'Failed to load bookings');
       setTurfBookings([]);
@@ -580,16 +588,54 @@ const TurfOwnerDashboard = () => {
           {loadingBookings ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg">Loading…</div>
           ) : selectedTurfId && turfBookings.length > 0 ? (
-            <div className="space-y-3">
-              {turfBookings.map(b => (
-                <div key={b.id} className="flex items-center justify-between p-4 bg-white rounded-lg border">
-                  <div>
-                    <div className="font-medium text-gray-900">Booking #{b.id}</div>
-                    <div className="text-sm text-gray-600">{b.bookingDate} • {b.startTime} - {b.endTime}</div>
-                  </div>
-                  <div className="text-sm text-gray-700">{b.status || 'confirmed'}</div>
-                </div>
-              ))}
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Details</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Info</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {turfBookings.map(b => (
+                    <tr key={b.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{b.bookingDate}</div>
+                        <div className="text-sm text-gray-500">{b.startTime} - {b.endTime}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {b.user?.firstName} {b.user?.lastName}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{b.user?.phone || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">{b.user?.email || 'N/A'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {b.payment?.method || 'N/A'}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          ₹{b.totalAmount || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                          ${b.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 
+                            b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
+                            b.status === 'CANCELLED' ? 'bg-red-100 text-red-800' : 
+                            'bg-blue-100 text-blue-800'}`}>
+                          {b.status || 'CONFIRMED'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           ) : selectedTurfId ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg text-gray-600">No bookings for this turf</div>

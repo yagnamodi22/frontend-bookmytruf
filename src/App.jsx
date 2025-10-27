@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
+import ScrollToTop from './components/ScrollToTop';
 import api from './services/api'; // Ensure you've configured api.js with axios and withCredentials:true
 
 // Lazy load page components
@@ -63,6 +64,7 @@ function App() {
 
   return (
     <Router>
+      <ScrollToTop />
       <div className="min-h-screen bg-gray-50">
         <Header
           isLoggedIn={isLoggedIn}

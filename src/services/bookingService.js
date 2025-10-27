@@ -41,12 +41,15 @@ export const bookingService = {
     return response.data; // array of ISO times (start times) that are booked
   },
 
-  createMultiBooking: async (turfId, date, slots, paymentMethod = 'upi') => {
+  createMultiBooking: async (turfId, date, slots, paymentMethod = 'upi', fullName, phoneNumber, email) => {
     const response = await api.post('/bookings/multi', {
       turfId,
       bookingDate: date,
       slots,
-      paymentMethod
+      paymentMethod,
+      fullName,
+      phoneNumber,
+      email
     });
     return response.data;
   },

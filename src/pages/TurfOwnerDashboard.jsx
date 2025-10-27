@@ -629,12 +629,12 @@ const TurfOwnerDashboard = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">
-                          {b.userName || 'N/A'}
+                          {b.fullName || b.userName || 'N/A'}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{b.userPhone || 'N/A'}</div>
-                        <div className="text-sm text-gray-500">{b.userEmail || 'N/A'}</div>
+                        <div className="text-sm text-gray-900">{b.phoneNumber || b.userPhone || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">{b.email || b.userEmail || 'N/A'}</div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">

@@ -305,7 +305,15 @@ const Booking = () => {
       // Create bookings for each date
       const bookingResults = [];
       for (const [date, dateSlots] of Object.entries(slotsByDate)) {
-        const result = await bookingService.createMultiBooking(turfId, date, dateSlots, bookingData.paymentMethod);
+        const result = await bookingService.createMultiBooking(
+          turfId, 
+          date, 
+          dateSlots, 
+          bookingData.paymentMethod,
+          bookingData.playerName,
+          bookingData.phoneNumber,
+          bookingData.email
+        );
         bookingResults.push(...result);
       }
       

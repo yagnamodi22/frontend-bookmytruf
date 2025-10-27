@@ -132,7 +132,9 @@ const Booking = () => {
     '06:00 - 07:00', '07:00 - 08:00', '08:00 - 09:00', '09:00 - 10:00',
     '10:00 - 11:00', '11:00 - 12:00', '12:00 - 13:00', '13:00 - 14:00',
     '14:00 - 15:00', '15:00 - 16:00', '16:00 - 17:00', '17:00 - 18:00',
-    '18:00 - 19:00', '19:00 - 20:00', '20:00 - 21:00', '21:00 - 22:00'
+    '18:00 - 19:00', '19:00 - 20:00', '20:00 - 21:00', '21:00 - 22:00',
+    '22:00 - 23:00', '23:00 - 00:00', '00:00 - 01:00', '01:00 - 02:00',
+    '02:00 - 03:00'
   ];
 
   const handleInputChange = (field, value) => {
@@ -244,7 +246,25 @@ const Booking = () => {
 
     const slots = bookingData.selectedSlots.map(s => {
       const { startTime, endTime } = parseTimesFromSlot(s);
-      return { startTime: `${startTime}:00`, endTime: `${endTime}:00` };
+      
+      // Handle slots that cross midnight (00:00-03:00)
+      // These slots belong to the next day logically
+      let slotDate = bookingData.date;
+      const hour = parseInt(startTime.split(':')[0], 10);
+      
+      // If the slot is between 00:00 and 03:00, it belongs to the next day
+      if (hour >= 0 && hour < 3) {
+        // Calculate next day's date
+        const nextDay = new Date(bookingData.date);
+        nextDay.setDate(nextDay.getDate() + 1);
+        slotDate = nextDay.toISOString().split('T')[0];
+      }
+      
+      return { 
+        startTime: `${startTime}:00`, 
+        endTime: `${endTime}:00`,
+        bookingDate: slotDate 
+      };
     });
 
     try {
@@ -255,7 +275,27 @@ const Booking = () => {
       const paymentResult = await simulatePayment(bookingData.paymentMethod, totalAmount);
       
       // Step 2: Create booking only after successful payment
-      const bookingResult = await bookingService.createMultiBooking(turfId, bookingData.date, slots, bookingData.paymentMethod);
+      // Group slots by date to handle slots after midnight
+      const slotsByDate = {};
+      slots.forEach(slot => {
+        const date = slot.bookingDate || bookingData.date;
+        if (!slotsByDate[date]) {
+          slotsByDate[date] = [];
+        }
+        slotsByDate[date].push({
+          startTime: slot.startTime,
+          endTime: slot.endTime
+        });
+      });
+      
+      // Create bookings for each date
+      const bookingResults = [];
+      for (const [date, dateSlots] of Object.entries(slotsByDate)) {
+        const result = await bookingService.createMultiBooking(turfId, date, dateSlots, bookingData.paymentMethod);
+        bookingResults.push(...result);
+      }
+      
+      const bookingResult = bookingResults;
       
       // Step 3: Navigate to dashboard with success message
       navigate('/dashboard', { 

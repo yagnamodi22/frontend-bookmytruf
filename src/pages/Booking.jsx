@@ -179,7 +179,15 @@ const Booking = () => {
   const toggleSlot = (slot) => {
     const { startTime } = parseTimesFromSlot(slot);
     const startHHmm = startTime.slice(0,5);
+    
+    // Check if slot is booked
     if (bookedStarts.includes(startHHmm)) return; // cannot select booked
+    
+    // Check if slot is in the past (for today's date only)
+    const isPastSlot = bookingData.date === new Date().toISOString().split('T')[0] && 
+      new Date(`${bookingData.date}T${startTime}:00`) < new Date();
+    if (isPastSlot) return; // cannot select past slots
+    
     setBookingData(prev => {
       const exists = prev.selectedSlots.includes(slot);
       const next = exists ? prev.selectedSlots.filter(s => s !== slot) : [...prev.selectedSlots, slot];
@@ -290,14 +298,19 @@ const Booking = () => {
                 const start = startTime.slice(0,5);
                 const isBooked = bookedStarts.includes(start);
                 const isSelected = bookingData.selectedSlots.includes(slot);
+                
+                // Check if slot is in the past (for today's date only)
+                const isPastSlot = bookingData.date === new Date().toISOString().split('T')[0] && 
+                  new Date(`${bookingData.date}T${startTime}:00`) < new Date();
+                
                 return (
                   <button
                     key={slot}
                     type="button"
                     onClick={() => toggleSlot(slot)}
-                    disabled={isBooked}
+                    disabled={isBooked || isPastSlot}
                     className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
-                      isBooked
+                      isBooked || isPastSlot
                         ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
                         : isSelected
                         ? 'bg-green-600 text-white border-green-600'
@@ -313,6 +326,7 @@ const Booking = () => {
               <div className="flex items-center"><span className="inline-block w-3 h-3 bg-green-600 rounded-sm mr-2"></span>Available</div>
               <div className="flex items-center"><span className="inline-block w-3 h-3 bg-gray-300 rounded-sm mr-2"></span>Booked</div>
               <div className="flex items-center"><span className="inline-block w-3 h-3 bg-green-200 rounded-sm mr-2"></span>Selected</div>
+              <div className="flex items-center"><span className="inline-block w-3 h-3 bg-gray-200 rounded-sm mr-2"></span>Past</div>
             </div>
           </div>
         </div>

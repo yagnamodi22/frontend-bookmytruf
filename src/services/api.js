@@ -33,17 +33,32 @@ api.interceptors.response.use(
     return response;
   },
   function(error) {
-    if (error.response && error.response.status === 401) {
-      // Clear auth data
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+    // Only handle actual API errors from specific endpoints
+    if (error.response && 
+        error.response.status === 401 && 
+        error.config && 
+        error.config.url && 
+        error.config.method !== 'options') {
       
-      // Set session expired message in sessionStorage
-      sessionStorage.setItem('authError', 'Session expired. Please log in again.');
+      // Only clear token for specific API calls that require authentication
+      // Avoid redirecting for profile or initial page load calls
+      const isAuthEndpoint = error.config.url.includes('/api/bookings') || 
+                            error.config.url.includes('/api/payments') ||
+                            error.config.url.includes('/api/users');
       
-      // Redirect to login page if not already there
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
+      if (isAuthEndpoint) {
+        // Clear auth data
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        
+        // Set session expired message in sessionStorage
+        sessionStorage.setItem('authError', 'Session expired. Please log in again.');
+        
+        // Only redirect if we're not already on the login page
+        if (!window.location.pathname.includes('/login')) {
+          console.log('Redirecting to login due to auth error on:', error.config.url);
+          window.location.href = '/login';
+        }
       }
     }
     return Promise.reject(error);

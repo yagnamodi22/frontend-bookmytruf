@@ -41,11 +41,15 @@ const Dashboard = () => {
     setError('');
     try {
       const data = await bookingService.getMyBookings();
-      setBookings(data);
-      // console.log(data);
-
+      setBookings(data || []);
     } catch (err) {
-      setError(err?.response?.data || 'Failed to load bookings');
+      console.error("Error loading bookings:", err);
+      // Don't set error for 401 errors - they'll be handled by the API interceptor
+      if (!err.response || err.response.status !== 401) {
+        setError(err?.response?.data?.message || 'Failed to load bookings');
+      }
+      // Set empty array to prevent infinite loading state
+      setBookings([]);
     } finally {
       setLoading(false);
     }
@@ -295,8 +299,15 @@ const Dashboard = () => {
       <div>
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Past Bookings</h3>
         {loading ? (
-          <div className="text-center py-8 bg-white rounded-xl">Loading…</div>
-        ) : pastBookings.length > 0 ? (
+          <div className="text-center py-8 bg-white rounded-xl">
+            <div className="animate-pulse flex flex-col items-center">
+              <div className="h-12 w-12 bg-gray-200 rounded-full mb-4"></div>
+              <div className="h-4 w-24 bg-gray-200 rounded mb-2"></div>
+              <div className="h-3 w-16 bg-gray-200 rounded"></div>
+            </div>
+            <p className="mt-4 text-gray-500">Loading your bookings...</p>
+          </div>
+        ) : pastBookings && pastBookings.length > 0 ? (
           <div className="space-y-4">
             <div className="bg-gray-50 p-3 rounded-lg mb-2">
               <h4 className="text-sm font-medium text-gray-700">Recent Bookings</h4>

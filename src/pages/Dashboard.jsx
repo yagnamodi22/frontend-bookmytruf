@@ -70,14 +70,63 @@ const Dashboard = () => {
     }
   };
 
-  const loadUserProfile = () => {
+  const loadUserProfile = async () => {
+    try {
+      // First try to get profile from API
+      const response = await fetch('https://book-by-truf-backend.onrender.com/api/auth/profile', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        }
+      });
+      
+      if (response.ok) {
+        const profileData = await response.json();
+        const profile = {
+          firstName: profileData.firstName || profileData.fullName?.split(' ')[0] || '',
+          lastName: profileData.lastName || profileData.fullName?.split(' ').slice(1).join(' ') || '',
+          email: profileData.email || '',
+          phone: profileData.phone || '',
+          createdAt: profileData.createdAt ? new Date(profileData.createdAt) : null,
+          favoriteSport: 'Football'
+        };
+        
+        setUserProfile(profile);
+        setProfileForm({
+          firstName: profile.firstName,
+          lastName: profile.lastName,
+          phone: profile.phone,
+          favoriteSport: profile.favoriteSport
+        });
+        
+        // Update localStorage with fresh data
+        const currentUser = authService.getCurrentUser();
+        if (currentUser) {
+          const updatedUser = {
+            ...currentUser,
+            ...profileData
+          };
+          localStorage.setItem('user', JSON.stringify(updatedUser));
+        }
+      } else {
+        // Fallback to localStorage if API fails
+        fallbackToLocalStorage();
+      }
+    } catch (err) {
+      console.error("Error loading profile:", err);
+      // Fallback to localStorage if API fails
+      fallbackToLocalStorage();
+    }
+  };
+  
+  const fallbackToLocalStorage = () => {
     const user = authService.getCurrentUser();
     if (user) {
       const profile = {
         firstName: user.firstName || user.fullName?.split(' ')[0] || '',
         lastName: user.lastName || user.fullName?.split(' ').slice(1).join(' ') || '',
         email: user.email || '',
-        phone: user.phone || '+91 98765 43210',
+        phone: user.phone || '',
         createdAt: user.createdAt ? new Date(user.createdAt) : null,
         favoriteSport: 'Football'
       };
@@ -299,7 +348,7 @@ const Dashboard = () => {
       <div>
         <h3 className="text-xl font-semibold text-gray-900 mb-4">Past Bookings</h3>
         {loading ? (
-          <div className="text-center py-8 bg-white rounded-xl">
+          <div className="text-center py-8 bg-white rounded-xl shadow-md">
             <div className="animate-pulse flex flex-col items-center">
               <div className="h-12 w-12 bg-gray-200 rounded-full mb-4"></div>
               <div className="h-4 w-24 bg-gray-200 rounded mb-2"></div>

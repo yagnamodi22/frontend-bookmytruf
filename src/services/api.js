@@ -33,20 +33,23 @@ api.interceptors.response.use(
     return response;
   },
   function(error) {
-    // Only handle actual API errors from specific endpoints
+    // Handle 401 Unauthorized errors
     if (error.response && 
         error.response.status === 401 && 
         error.config && 
         error.config.url && 
         error.config.method !== 'options') {
       
-      // Only clear token for specific API calls that require authentication
-      // Avoid redirecting for profile or initial page load calls
-      const isAuthEndpoint = error.config.url.includes('/api/bookings') || 
-                            error.config.url.includes('/api/payments') ||
-                            error.config.url.includes('/api/users');
+      // Handle all authenticated endpoints
+      // We consider all endpoints authenticated except for public ones
+      const isPublicEndpoint = 
+        error.config.url.includes('/api/auth/login') || 
+        error.config.url.includes('/api/auth/register') ||
+        error.config.url.includes('/api/turfs/public');
       
-      if (isAuthEndpoint) {
+      if (!isPublicEndpoint) {
+        console.log('Authentication error on:', error.config.url);
+        
         // Clear auth data
         localStorage.removeItem('token');
         localStorage.removeItem('user');
@@ -56,7 +59,6 @@ api.interceptors.response.use(
         
         // Only redirect if we're not already on the login page
         if (!window.location.pathname.includes('/login')) {
-          console.log('Redirecting to login due to auth error on:', error.config.url);
           window.location.href = '/login';
         }
       }

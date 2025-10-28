@@ -40,13 +40,19 @@ api.interceptors.response.use(
         error.config.url && 
         error.config.method !== 'options') {
       
-      // Handle all authenticated endpoints
-      // We consider all endpoints authenticated except for public ones
-      const isPublicEndpoint = 
-        error.config.url.includes('/api/auth/login') || 
-        error.config.url.includes('/api/auth/register') ||
-        error.config.url.includes('/api/turfs/public');
+      // Define public endpoints that should NOT trigger logout
+      const publicEndpoints = [
+        '/api/auth/login',
+        '/api/auth/register',
+        '/api/turfs/public'
+      ];
       
+      // Check if the current URL is a public endpoint
+      const isPublicEndpoint = publicEndpoints.some(endpoint => 
+        error.config.url.includes(endpoint)
+      );
+      
+      // If not a public endpoint, handle as authenticated endpoint
       if (!isPublicEndpoint) {
         console.log('Authentication error on:', error.config.url);
         

@@ -72,16 +72,11 @@ const Dashboard = () => {
 
   const loadUserProfile = async () => {
     try {
-      // First try to get profile from API
-      const response = await fetch('https://book-by-truf-backend.onrender.com/api/auth/profile', {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      // First try to get profile from API using the api service
+      const response = await authService.getCurrentUserProfile();
       
-      if (response.ok) {
-        const profileData = await response.json();
+      if (response) {
+        const profileData = response;
         const profile = {
           firstName: profileData.firstName || profileData.fullName?.split(' ')[0] || '',
           lastName: profileData.lastName || profileData.fullName?.split(' ').slice(1).join(' ') || '',
@@ -354,7 +349,7 @@ const Dashboard = () => {
               <div className="h-4 w-24 bg-gray-200 rounded mb-2"></div>
               <div className="h-3 w-16 bg-gray-200 rounded"></div>
             </div>
-            <p className="mt-4 text-gray-500">Loading your bookings...</p>
+            <p className="mt-4 text-gray-500">Loading your bookings... <span className="text-xs text-gray-400">This may take a moment</span></p>
           </div>
         ) : pastBookings && pastBookings.length > 0 ? (
           <div className="space-y-4">

@@ -112,5 +112,15 @@ export const authService = {
     } catch (error) {
       throw error;
     }
+  },
+  
+  getCurrentUserProfile: async () => {
+    try {
+      const response = await api.get('/auth/profile');
+      return response.data;
+    } catch (error) {
+      console.error("Error fetching user profile:", error);
+      return null;
+    }
   }
 };

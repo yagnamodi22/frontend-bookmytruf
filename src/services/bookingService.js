@@ -2,6 +2,16 @@
 import api from './api';
 
 export const bookingService = {
+  // Get total bookings count and revenue for admin dashboard
+  getTotalBookingsAndRevenue: async () => {
+    try {
+      const response = await api.get('/bookings/admin/stats');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching booking stats for admin:', error);
+      throw error;
+    }
+  },
   // ✅ Create a single booking
   createBooking: async (bookingData) => {
     try {

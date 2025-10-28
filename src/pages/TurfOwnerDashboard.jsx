@@ -194,19 +194,32 @@ const TurfOwnerDashboard = () => {
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
-      // Limit to 5 images maximum
-      const limitedFiles = files.slice(0, 5);
-      setSelectedImages(limitedFiles);
+      // Check if adding these files would exceed the 5 image limit
+      const totalImages = selectedImages.length + files.length;
+      const canAddCount = Math.min(files.length, 5 - selectedImages.length);
       
-      // Create preview URLs
-      const previews = limitedFiles.map(file => URL.createObjectURL(file));
-      setImagePreviews(previews);
+      if (canAddCount <= 0) {
+        setError('Maximum 5 images allowed');
+        return;
+      }
+      
+      // Add new files to existing selection (up to 5 total)
+      const newFiles = files.slice(0, canAddCount);
+      const updatedImages = [...selectedImages, ...newFiles];
+      setSelectedImages(updatedImages);
+      
+      // Create preview URLs for new files and add to existing previews
+      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+      setImagePreviews([...imagePreviews, ...newPreviews]);
       
       // Update form data
       setFormData(prev => ({
         ...prev,
-        images: limitedFiles
+        images: updatedImages
       }));
+      
+      // Clear any previous errors
+      setError('');
     }
   };
 
@@ -638,7 +651,7 @@ const TurfOwnerDashboard = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {b.paymentMethod || 'N/A'}
+                          {b.paymentMode ? b.paymentMode : (b.status === 'PENDING' ? 'Pending' : 'Not Paid')}
                         </div>
                         <div className="text-sm text-gray-500">
                           ₹{b.totalAmount || 'N/A'}
@@ -885,23 +898,60 @@ const TurfOwnerDashboard = () => {
                 </div>
 
                 {imagePreviews.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative group">
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-24 object-cover rounded-lg border border-gray-200"
-                        />
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-sm font-medium text-gray-700">Selected Images ({imagePreviews.length}/5)</h4>
+                      {imagePreviews.length > 0 && (
                         <button
                           type="button"
-                          onClick={() => removeImage(index)}
-                          className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors"
+                          onClick={() => {
+                            setSelectedImages([]);
+                            setImagePreviews([]);
+                            setFormData(prev => ({ ...prev, images: [] }));
+                          }}
+                          className="text-xs text-red-600 hover:text-red-800"
                         >
-                          ×
+                          Clear all
                         </button>
-                      </div>
-                    ))}
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {imagePreviews.map((preview, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square overflow-hidden rounded-lg border border-gray-200">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-sm"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {imagePreviews.length < 5 && (
+                        <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                          <div className="flex flex-col items-center justify-center p-2 text-center">
+                            <svg className="w-6 h-6 mb-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <span className="text-xs text-gray-500">Add more</span>
+                          </div>
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            multiple 
+                            accept="image/*"
+                            onChange={handleImageChange}
+                          />
+                        </label>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>

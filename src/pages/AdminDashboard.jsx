@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { turfService } from '../services/turfService';
 import { userService } from '../services/userService';
+import { bookingService } from '../services/bookingService';
 import { siteSettingsService } from '../services/siteSettingsService';
 import { getImageSources } from '../utils/imageUtils';
 import TurfDetailsModal from '../components/TurfDetailsModal';
@@ -42,6 +43,8 @@ const AdminDashboard = () => {
   const [settingsSaveStatus, setSettingsSaveStatus] = useState(''); // '', 'saving', 'success', 'error'
   const [settingsSaveMessage, setSettingsSaveMessage] = useState('');
   const settingKeys = ['site_name','logo_url','contact_phone','contact_email','contact_address'];
+  const [totalBookings, setTotalBookings] = useState(0);
+  const [totalRevenue, setTotalRevenue] = useState(0);
 
   const normalize = (data) => {
     if (!data) return [];
@@ -168,6 +171,18 @@ const AdminDashboard = () => {
       setSettingsDraft(map || {});
     } catch {}
   };
+  
+  const loadBookingStats = async () => {
+    try {
+      const stats = await bookingService.getTotalBookingsAndRevenue();
+      if (stats) {
+        setTotalBookings(stats.totalBookings || 0);
+        setTotalRevenue(stats.totalRevenue || 0);
+      }
+    } catch (error) {
+      console.error('Error loading booking stats:', error);
+    }
+  };
 
   useEffect(() => {
     console.log('AdminDashboard: Component mounted');
@@ -187,12 +202,27 @@ const AdminDashboard = () => {
     loadPending();
     loadApproved();
     loadSettings();
+    loadBookingStats();
   }, []);
 
   // Separate useEffect for user pagination
   useEffect(() => {
     loadAllUsers();
   }, [userPage, userSize]);
+  
+  // Set up real-time updates for booking stats
+  useEffect(() => {
+    // Initial load
+    loadBookingStats();
+    
+    // Set up interval for real-time updates (every 30 seconds)
+    const interval = setInterval(() => {
+      loadBookingStats();
+    }, 30000);
+    
+    // Clean up interval on component unmount
+    return () => clearInterval(interval);
+  }, []);
 
   const handleApproveRequest = async (requestId) => {
     try {
@@ -361,8 +391,8 @@ const AdminDashboard = () => {
     totalTurfs: safeApproved.length,
     pendingRequests: safePending.length,
     totalUsers: userTotalCount,
-    totalBookings: safeApproved.reduce((sum, turf) => sum + (turf.totalBookings || 0), 0),
-    totalRevenue: safeApproved.reduce((sum, turf) => sum + (turf.revenue || 0), 0)
+    totalBookings: totalBookings,
+    totalRevenue: totalRevenue
   };
 
   const renderOverview = () => (

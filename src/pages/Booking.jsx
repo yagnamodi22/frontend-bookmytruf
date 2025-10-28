@@ -341,7 +341,7 @@ const Booking = () => {
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Date & Time</h3>
         <div className="grid grid-cols-1 gap-6">
-          <div>
+          <div className="max-w-full">
             <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
             <input
               type="date"
@@ -354,48 +354,50 @@ const Booking = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Select Time Slot(s)</label>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-              {timeSlots.map((slot) => {
-                const { startTime } = parseTimesFromSlot(slot);
-                const start = startTime.slice(0,5);
-                const isBooked = bookedStarts.includes(start);
-                const isSelected = bookingData.selectedSlots.includes(slot);
-                
-                // Check if slot is in the past (for today's date only)
-                let isPastSlot = false;
-                if (bookingData.date === new Date().toISOString().split('T')[0]) {
-                  const now = new Date();
-                  const slotStartTime = new Date(`${bookingData.date}T${startTime}:00`);
+            <div className="overflow-x-auto pb-2 -mx-2 px-2">
+              <div className="flex flex-wrap md:grid md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2">
+                {timeSlots.map((slot) => {
+                  const { startTime } = parseTimesFromSlot(slot);
+                  const start = startTime.slice(0,5);
+                  const isBooked = bookedStarts.includes(start);
+                  const isSelected = bookingData.selectedSlots.includes(slot);
                   
-                  // For slots between 00:00 and 03:00, they belong to the next day logically
-                  const hourNum = parseInt(startTime.split(':')[0], 10);
-                  if (hourNum >= 0 && hourNum < 3) {
-                    // These are late night slots (after midnight)
-                    isPastSlot = false; // These slots are for tomorrow, so they're not past
-                  } else {
-                    // Regular slots - check if current time is past the slot start time
-                    isPastSlot = slotStartTime < now;
+                  // Check if slot is in the past (for today's date only)
+                  let isPastSlot = false;
+                  if (bookingData.date === new Date().toISOString().split('T')[0]) {
+                    const now = new Date();
+                    const slotStartTime = new Date(`${bookingData.date}T${startTime}:00`);
+                    
+                    // For slots between 00:00 and 03:00, they belong to the next day logically
+                    const hourNum = parseInt(startTime.split(':')[0], 10);
+                    if (hourNum >= 0 && hourNum < 3) {
+                      // These are late night slots (after midnight)
+                      isPastSlot = false; // These slots are for tomorrow, so they're not past
+                    } else {
+                      // Regular slots - check if current time is past the slot start time
+                      isPastSlot = slotStartTime < now;
+                    }
                   }
-                }
-                
-                return (
-                  <button
-                    key={slot}
-                    type="button"
-                    onClick={() => toggleSlot(slot)}
-                    disabled={isBooked || isPastSlot}
-                    className={`px-3 py-2 rounded-lg text-sm border transition-colors ${
-                      isBooked || isPastSlot
-                        ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
-                        : isSelected
-                        ? 'bg-green-600 text-white border-green-600'
-                        : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
-                    }`}
-                  >
-                    {slot}
-                  </button>
-                );
-              })}
+                  
+                  return (
+                    <button
+                      key={slot}
+                      type="button"
+                      onClick={() => toggleSlot(slot)}
+                      disabled={isBooked || isPastSlot}
+                      className={`px-2 py-2 rounded-lg text-xs sm:text-sm border whitespace-nowrap transition-colors flex-grow-0 flex-shrink-0 basis-[calc(50%-0.25rem)] sm:basis-[calc(33.333%-0.5rem)] md:basis-auto ${
+                        isBooked || isPastSlot
+                          ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
+                          : isSelected
+                          ? 'bg-green-600 text-white border-green-600'
+                          : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'
+                      }`}
+                    >
+                      {slot}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
             <div className="flex items-center space-x-4 text-sm text-gray-600 mt-3">
               <div className="flex items-center"><span className="inline-block w-3 h-3 bg-green-600 rounded-sm mr-2"></span>Available</div>

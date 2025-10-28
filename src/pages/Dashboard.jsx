@@ -130,6 +130,13 @@ const Dashboard = () => {
           .sort((a, b) => new Date(b.bookingDate) - new Date(a.bookingDate)) // Sort by most recent first
       : [];
   }, [bookings]);
+  
+  // Ensure past bookings are loaded and displayed correctly
+  useEffect(() => {
+    if (activeTab === 'bookings' && pastBookings.length === 0 && !loading) {
+      loadBookings();
+    }
+  }, [activeTab, pastBookings.length, loading]);
 
   const [serverTotals, setServerTotals] = useState({ totalBookings: 0, totalSpent: 0 });
 
@@ -298,6 +305,11 @@ const Dashboard = () => {
               <div key={booking.id} className="bg-white rounded-xl shadow-md p-6 border-l-4 border-gray-300 hover:border-green-500 transition-all duration-200">
                 <div className="flex items-center justify-between">
                   <div>
+                    <div className="flex items-center mb-2">
+                      <span className="text-xs font-medium bg-gray-100 text-gray-800 px-2 py-1 rounded mr-2">
+                        Booking ID: {booking.id}
+                      </span>
+                    </div>
                     <h4 className="font-semibold text-gray-900">{booking.turf?.name || 'Turf'}</h4>
                     <div className="flex items-center text-gray-600 text-sm mt-1">
                       <MapPin className="w-4 h-4 mr-1" />
@@ -311,12 +323,21 @@ const Dashboard = () => {
                       <Clock className="w-4 h-4 mr-1" />
                       {booking.startTime} - {booking.endTime}
                     </div>
+                    {booking.notes && (
+                      <div className="mt-2 text-sm text-gray-600">
+                        <span className="font-medium">Notes:</span> {booking.notes}
+                      </div>
+                    )}
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold text-gray-600">₹{booking.amount || booking.price || 0}</div>
                     <div className="text-sm text-gray-600">{booking.duration || ''}</div>
                     <div className="mt-2">
-                      <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded-full">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        booking.status === 'completed' ? 'bg-green-100 text-green-700' : 
+                        booking.status === 'canceled' ? 'bg-red-100 text-red-700' : 
+                        'bg-gray-100 text-gray-600'
+                      }`}>
                         {booking.status || 'completed'}
                       </span>
                     </div>
@@ -484,25 +505,7 @@ const Dashboard = () => {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h4 className="text-lg font-semibold text-gray-900 mb-4">Account Statistics</h4>
-        <div className="grid grid-cols-3 gap-4">
-          <div className="text-center">
-            <div className="text-2xl font-bold text-green-600">
-              {Array.isArray(bookings) ? bookings.length : 0}
-            </div>
-            <div className="text-sm text-gray-600">Total Bookings</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-blue-600">4.8</div>
-            <div className="text-sm text-gray-600">Average Rating</div>
-          </div>
-          <div className="text-center">
-            <div className="text-2xl font-bold text-purple-600">₹{totalSpent.toLocaleString()}</div>
-            <div className="text-sm text-gray-600">Total Spent</div>
-          </div>
-        </div>
-      </div>
+      {/* Account Statistics section removed as requested */}
     </div>
   );
 

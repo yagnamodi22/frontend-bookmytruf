@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Mail, Lock, Eye, EyeOff, User } from 'lucide-react';
 import { authService } from '../services/authService';
@@ -16,6 +16,15 @@ const Login = ({ setIsLoggedIn, setUser }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
+  
+  // Check for auth error message on component mount
+  useEffect(() => {
+    const authError = sessionStorage.getItem('authError');
+    if (authError) {
+      setError(authError);
+      sessionStorage.removeItem('authError');
+    }
+  }, []);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));

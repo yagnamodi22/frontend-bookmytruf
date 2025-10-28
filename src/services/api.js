@@ -34,10 +34,17 @@ api.interceptors.response.use(
   },
   function(error) {
     if (error.response && error.response.status === 401) {
-      // Clear auth data but don't redirect
+      // Clear auth data
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      // Automatic redirect removed
+      
+      // Set session expired message in sessionStorage
+      sessionStorage.setItem('authError', 'Session expired. Please log in again.');
+      
+      // Redirect to login page if not already there
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

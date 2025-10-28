@@ -31,7 +31,7 @@ const TurfList = () => {
     if (authService.isAuthenticated()) {
       navigate(`/booking/${turfId}`);
     } else {
-      navigate('/login');
+      // Removed automatic redirect to login
     }
   };
 

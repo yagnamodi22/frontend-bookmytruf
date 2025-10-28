@@ -34,12 +34,10 @@ api.interceptors.response.use(
   },
   function(error) {
     if (error.response && error.response.status === 401) {
-      // Prevent redirect loops by checking current path
-      if (window.location.pathname !== '/login') {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-      }
+      // Clear auth data but don't redirect
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      // Automatic redirect removed
     }
     return Promise.reject(error);
   }

@@ -37,7 +37,8 @@ const ProtectedRoute = ({ children, roles }) => {
       try {
         // First check local storage
         if (!authService.isAuthenticated()) {
-          navigate('/login');
+          setIsAuthenticated(false);
+          setIsVerifying(false);
           return;
         }
 
@@ -77,14 +78,14 @@ const ProtectedRoute = ({ children, roles }) => {
             console.error('Token validation failed:', error);
             // Clear invalid auth data
             authService.logout();
-            navigate('/login');
+            setIsAuthenticated(false);
           }
         } else {
-          navigate('/login');
+          setIsAuthenticated(false);
         }
       } catch (error) {
         console.error('Auth verification error:', error);
-        navigate('/login');
+        setIsAuthenticated(false);
       } finally {
         setIsVerifying(false);
       }
@@ -117,6 +118,7 @@ const ProtectedRoute = ({ children, roles }) => {
     </div>;
   }
 
+  // If not authenticated, don't redirect, just return null
   return isAuthenticated && hasRequiredRole ? children : null;
 };
 

@@ -66,7 +66,7 @@ const Home = () => {
     } else {
       // Instead of automatically redirecting to login, show a prompt or modal
       if (window.confirm('You need to be logged in to book a turf. Would you like to log in now?')) {
-        navigate('/login', { state: { returnTo: `/turf/${turfId}` } });
+        // Removed automatic redirect to login
       }
     }
   };

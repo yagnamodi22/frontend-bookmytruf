@@ -49,7 +49,7 @@ const TurfDetails = () => {
     if (authService.isAuthenticated()) {
       navigate(`/booking/${id}`);
     } else {
-      navigate('/login');
+      // Removed automatic redirect to login
     }
   };
 

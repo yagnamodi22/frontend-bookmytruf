@@ -204,7 +204,7 @@ const TurfOwnerDashboard = () => {
       });
       
       // Reload offline bookings for the selected turf
-      await loadOfflineBookings(offlineBookingData.turfId);
+      await loadOfflineBookings(offlineBookingData?.turfId);
       
       alert("Slot blocked successfully!");
     } catch (err) {
@@ -223,7 +223,7 @@ const TurfOwnerDashboard = () => {
       await bookingService.deleteOfflineBooking(bookingId);
       
       // Reload offline bookings
-      await loadOfflineBookings(offlineBookingData.turfId);
+      await loadOfflineBookings(offlineBookingData?.turfId);
       
       alert("Slot unblocked successfully!");
     } catch (err) {
@@ -1236,13 +1236,14 @@ const TurfOwnerDashboard = () => {
   );
 };
 
+// Add useEffect at component level for offline bookings
+useEffect(() => {
+  if (offlineBookingData?.turfId) {
+    loadOfflineBookings(offlineBookingData.turfId);
+  }
+}, [offlineBookingData?.turfId]);
+
 const renderOfflineBookingsTab = () => {
-  // Load offline bookings when turf is selected
-  useEffect(() => {
-    if (offlineBookingData.turfId) {
-      loadOfflineBookings(offlineBookingData.turfId);
-    }
-  }, [offlineBookingData.turfId]);
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6">
@@ -1257,7 +1258,7 @@ const renderOfflineBookingsTab = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Select Turf *</label>
               <select 
                 name="turfId" 
-                value={offlineBookingData.turfId} 
+                value={offlineBookingData?.turfId || ''} 
                 onChange={handleOfflineBookingChange}
                 className="w-full p-2 border border-gray-300 rounded-md"
                 required
@@ -1274,7 +1275,7 @@ const renderOfflineBookingsTab = () => {
               <input 
                 type="date" 
                 name="date" 
-                value={offlineBookingData.date} 
+                value={offlineBookingData?.date || ''} 
                 onChange={handleOfflineBookingChange}
                 min={new Date().toISOString().split('T')[0]}
                 className="w-full p-2 border border-gray-300 rounded-md"
@@ -1287,7 +1288,7 @@ const renderOfflineBookingsTab = () => {
               <input 
                 type="time" 
                 name="startTime" 
-                value={offlineBookingData.startTime} 
+                value={offlineBookingData?.startTime || ''} 
                 onChange={handleOfflineBookingChange}
                 className="w-full p-2 border border-gray-300 rounded-md"
                 required
@@ -1299,7 +1300,7 @@ const renderOfflineBookingsTab = () => {
               <input 
                 type="time" 
                 name="endTime" 
-                value={offlineBookingData.endTime} 
+                value={offlineBookingData?.endTime || ''} 
                 onChange={handleOfflineBookingChange}
                 className="w-full p-2 border border-gray-300 rounded-md"
                 required
@@ -1311,7 +1312,7 @@ const renderOfflineBookingsTab = () => {
               <input 
                 type="number" 
                 name="amount" 
-                value={offlineBookingData.amount} 
+                value={offlineBookingData?.amount || ''} 
                 onChange={handleOfflineBookingChange}
                 placeholder="Optional"
                 className="w-full p-2 border border-gray-300 rounded-md"
@@ -1335,7 +1336,7 @@ const renderOfflineBookingsTab = () => {
       <div>
         <h3 className="text-lg font-medium text-gray-900 mb-4">Currently Blocked Slots</h3>
         
-        {!offlineBookingData.turfId ? (
+        {!offlineBookingData?.turfId ? (
           <div className="text-gray-600">Please select a turf to view blocked slots.</div>
         ) : loadingOfflineBookings ? (
           <div className="text-center py-8">Loading...</div>

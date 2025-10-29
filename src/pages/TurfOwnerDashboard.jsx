@@ -818,18 +818,7 @@ const TurfOwnerDashboard = () => {
               
               <div className="p-4 flex items-center justify-end border-t">
                 <div className="flex items-center space-x-2">
-                  <label className="text-sm text-gray-600">x:</label>
-                  <select
-                    value={bookingSize}
-                    onChange={(e) => {
-                      const size = parseInt(e.target.value, 10);
-                      setBookingSize(size);
-                      setBookingPage(0); // Reset to first page when changing page size
-                    }}
-                    className="border rounded-md px-2 py-1"
-                  >
-                    {[5, 10, 20, 50].map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
+                  
                 </div>
               </div>
             </div>

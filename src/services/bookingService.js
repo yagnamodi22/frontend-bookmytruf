@@ -2,6 +2,44 @@
 import api from './api';
 
 export const bookingService = {
+  // Create offline booking
+  createOfflineBooking: async (turfId, date, startTime, endTime, amount) => {
+    try {
+      const response = await api.post('/bookings/offline', {
+        turfId,
+        date,
+        startTime,
+        endTime,
+        amount
+      });
+      return response.data;
+    } catch (error) {
+      console.error('Error creating offline booking:', error);
+      throw error;
+    }
+  },
+  
+  // Delete offline booking
+  deleteOfflineBooking: async (bookingId) => {
+    try {
+      const response = await api.delete(`/bookings/offline/${bookingId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error deleting offline booking:', error);
+      throw error;
+    }
+  },
+  
+  // Get offline bookings for a turf
+  getOfflineBookings: async (turfId) => {
+    try {
+      const response = await api.get(`/bookings/offline/turf/${turfId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching offline bookings:', error);
+      throw error;
+    }
+  },
   // Get total bookings count and revenue for admin dashboard
   getTotalBookingsAndRevenue: async () => {
     try {

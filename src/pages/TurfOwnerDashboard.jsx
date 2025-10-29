@@ -66,17 +66,6 @@ const TurfOwnerDashboard = () => {
   });
   const [offlineBookings, setOfflineBookings] = useState([]);
   const [loadingOfflineBookings, setLoadingOfflineBookings] = useState(false);
-  
-  // Offline bookings state
-  // const [offlineBookingData, setOfflineBookingData] = useState({
-  //   turfId: '',
-  //   date: '',
-  //   startTime: '',
-  //   endTime: '',
-  //   amount: ''
-  // });
-  const [offlineBookings, setOfflineBookings] = useState([]);
-  const [loadingOfflineBookings, setLoadingOfflineBookings] = useState(false);
   const [offlineBookingError, setOfflineBookingError] = useState('');
 
   const sportsOptions = ['Football', 'Cricket', 'Basketball', 'Tennis', 'Badminton', 'Volleyball'];

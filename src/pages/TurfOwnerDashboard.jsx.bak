@@ -1246,6 +1246,10 @@ const TurfOwnerDashboard = () => {
       {/* Render Offline Bookings Tab */}
     </div>
   );
+};
+
+const TurfOwnerDashboard = () => {
+  // Original component code...
   
   const renderOfflineBookingsTab = () => {
     return (

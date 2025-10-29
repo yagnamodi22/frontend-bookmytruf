@@ -1366,7 +1366,10 @@ const TurfOwnerDashboard = () => {
         </button>
       </div>
 
-      {/* Display Offline Bookings */}
+     {/* Display Offline Bookings */}
+const renderOfflineBookingsTab = () => {
+  return (
+    <>
       {offlineBookingData.turfId ? (
         <>
           {loadingOfflineBookings ? (
@@ -1442,8 +1445,19 @@ const TurfOwnerDashboard = () => {
           </p>
         </div>
       )}
-    </div>
+    </>
   );
+};
+
+// ✅ Main component return (example)
+return (
+  <div className="p-6">
+    {activeTab === "overview" && renderOverviewTab()}
+    {activeTab === "bookings" && renderBookingsTab()}
+    {activeTab === "offlineBookings" && renderOfflineBookingsTab()}
+  </div>
+);
+
 };
 
 export default TurfOwnerDashboard;

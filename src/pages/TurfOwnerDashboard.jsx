@@ -818,7 +818,7 @@ const TurfOwnerDashboard = () => {
               
               <div className="p-4 flex items-center justify-end border-t">
                 <div className="flex items-center space-x-2">
-                  <label className="text-sm text-gray-600">Page Size:</label>
+                  <label className="text-sm text-gray-600">x:</label>
                   <select
                     value={bookingSize}
                     onChange={(e) => {

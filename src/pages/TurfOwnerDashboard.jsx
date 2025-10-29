@@ -96,109 +96,160 @@ const TurfOwnerDashboard = () => {
   };
 
   const [ownerStats, setOwnerStats] = useState({ totalBookings: 0, totalRevenue: 0 });
-  
   // Handle offline booking creation
   const handleCreateOfflineBooking = async () => {
-    if (!offlineBookingData.turfId || !offlineBookingData.date || !offlineBookingData.startTime || !offlineBookingData.endTime) {
-      alert('Please fill all required fields');
+    if (!offlineBookingData.turfId) {
+      alert('Please select a turf');
       return;
     }
-
+    if (!offlineBookingData.date) {
+      alert('Please select a date');
+      return;
+    }
+    if (!offlineBookingData.startTime || !offlineBookingData.endTime) {
+      alert('Please select start and end time');
+      return;
+    }
+    
     try {
       setLoadingOfflineBookings(true);
-      await bookingService.createOfflineBooking(offlineBookingData);
+      setError('');
+      await bookingService.createOfflineBooking(
+        offlineBookingData.turfId,
+        offlineBookingData.date,
+        offlineBookingData.startTime,
+        offlineBookingData.endTime,
+        offlineBookingData.amount || null
+      );
       
-      // Reset form except turfId
-      setOfflineBookingData(prev => ({
-        ...prev,
-        date: '',
+      // Reset form and reload bookings
+      setOfflineBookingData({
+        turfId: offlineBookingData.turfId,
+        date: offlineBookingData.date,
         startTime: '',
         endTime: '',
         amount: ''
-      }));
+      });
       
       // Reload offline bookings
       loadOfflineBookings(offlineBookingData.turfId);
+      alert('Offline booking created successfully');
     } catch (err) {
-      alert(err?.response?.data?.message || 'Failed to create offline booking');
+      setError(err?.response?.data || 'Failed to create offline booking');
     } finally {
       setLoadingOfflineBookings(false);
     }
   };
-
-  // Load offline bookings for a specific turf
+  
+  // Handle offline booking deletion
+  const handleDeleteOfflineBooking = async (bookingId) => {
+    if (!confirm('Are you sure you want to unblock this slot?')) {
+      return;
+    }
+    
+    try {
+      setLoadingOfflineBookings(true);
+      setError('');
+      await bookingService.deleteOfflineBooking(bookingId);
+      
+      // Reload offline bookings
+      loadOfflineBookings(offlineBookingData.turfId);
+      alert('Slot unblocked successfully');
+    } catch (err) {
+      setError(err?.response?.data || 'Failed to unblock slot');
+    } finally {
+      setLoadingOfflineBookings(false);
+    }
+  };
+  
+  // Load offline bookings for a turf
   const loadOfflineBookings = async (turfId) => {
     if (!turfId) return;
     
     try {
       setLoadingOfflineBookings(true);
-      const data = await bookingService.getOfflineBookings(turfId);
-      setOfflineBookings(normalize(data));
+      setError('');
+      const bookings = await bookingService.getOfflineBookings(turfId);
+      setOfflineBookings(normalize(bookings));
     } catch (err) {
       console.error('Failed to load offline bookings:', err);
+      setError('Failed to load offline bookings');
       setOfflineBookings([]);
     } finally {
       setLoadingOfflineBookings(false);
     }
   };
 
-  // Handle delete offline booking
-  const handleDeleteOfflineBooking = async (bookingId) => {
-    if (!confirm('Are you sure you want to unblock this slot?')) return;
-    
+  const loadOwnerStats = async () => {
     try {
-      setLoadingOfflineBookings(true);
-      await bookingService.deleteOfflineBooking(bookingId);
-      
-      // Reload offline bookings
-      loadOfflineBookings(offlineBookingData.turfId);
-    } catch (err) {
-      alert(err?.response?.data?.message || 'Failed to delete offline booking');
-    } finally {
-      setLoadingOfflineBookings(false);
-    }
+      const stats = await turfService.getMyTurfsStats();
+      setOwnerStats({
+        totalBookings: Number(stats?.totalBookings || 0),
+        totalRevenue: Number(stats?.totalRevenue || 0)
+      });
+    } catch (_) {}
   };
 
-  // Effect to load offline bookings when turfId changes
-  useEffect(() => {
-    if (offlineBookingData.turfId) {
-      loadOfflineBookings(offlineBookingData.turfId);
-    }
-  }, [offlineBookingData.turfId]);
-
-  const loadTurfBookings = async (turfId, page = 0, size = 10) => {
+  const loadBookingsForSelected = async (turfId) => {
     if (!turfId) return;
-    
     try {
       setLoadingBookings(true);
-      const data = await bookingService.getTurfBookings(turfId, page, size);
-      setTurfBookings(normalize(data.content));
-      setBookingTotalPages(data.totalPages);
-      setBookingTotalCount(data.totalElements);
+      setError('');
+      const data = await bookingService.getBookingsByTurfPaginated(turfId, bookingPage, bookingSize);
+      
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.content)) {
+          // Paginated response
+          setTurfBookings(normalize(data.content));
+          setBookingTotalPages(data.totalPages || 0);
+          setBookingTotalCount(data.totalElements || 0);
+        } else if (Array.isArray(data)) {
+          // Direct array response (fallback)
+          setTurfBookings(normalize(data));
+          setBookingTotalPages(1);
+          setBookingTotalCount(data.length || 0);
+        } else {
+          // Fallback
+          setTurfBookings([]);
+          setBookingTotalPages(0);
+          setBookingTotalCount(0);
+        }
+      } else {
+        setTurfBookings([]);
+        setBookingTotalPages(0);
+        setBookingTotalCount(0);
+      }
     } catch (err) {
-      console.error('Failed to load turf bookings:', err);
+      setError(err?.response?.data || 'Failed to load bookings');
       setTurfBookings([]);
+      setBookingTotalPages(0);
+      setBookingTotalCount(0);
     } finally {
       setLoadingBookings(false);
     }
   };
 
-  const loadOwnerStats = async () => {
-    try {
-      const data = await bookingService.getOwnerStats();
-      setOwnerStats(data);
-    } catch (err) {
-      console.error('Failed to load owner stats:', err);
+  const loadUserProfile = () => {
+    const user = authService.getCurrentUser();
+    if (user) {
+      const profile = {
+        firstName: user.firstName || user.fullName?.split(' ')[0] || '',
+        lastName: user.lastName || user.fullName?.split(' ').slice(1).join(' ') || '',
+        email: user.email || '',
+        phone: user.phone || '+91 98765 43210'
+      };
+      setUserProfile(profile);
     }
   };
 
-  const loadUserProfile = async () => {
-    try {
-      const data = await authService.getUserProfile();
-      setUserProfile(data);
-    } catch (err) {
-      console.error('Failed to load user profile:', err);
-    }
+  const handleProfileUpdate = (updatedProfile) => {
+    // Update the local user profile state
+    setUserProfile({
+      firstName: updatedProfile.firstName || updatedProfile.fullName?.split(' ')[0] || '',
+      lastName: updatedProfile.lastName || updatedProfile.fullName?.split(' ').slice(1).join(' ') || '',
+      email: updatedProfile.email || '',
+      phone: updatedProfile.phone || ''
+    });
   };
 
   useEffect(() => {
@@ -206,808 +257,996 @@ const TurfOwnerDashboard = () => {
     loadOwnerStats();
     loadUserProfile();
   }, []);
+  
+  // Load offline bookings when turf changes
+  useEffect(() => {
+    if (offlineBookingData.turfId) {
+      loadOfflineBookings(offlineBookingData.turfId);
+    }
+  }, [offlineBookingData.turfId]);
 
   useEffect(() => {
     if (selectedTurfId) {
-      loadTurfBookings(selectedTurfId, bookingPage, bookingSize);
+      loadBookingsForSelected(selectedTurfId);
     }
   }, [selectedTurfId, bookingPage, bookingSize]);
 
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSportToggle = (sport) => {
+    setFormData(prev => ({
+      ...prev,
+      sports: prev.sports.includes(sport)
+        ? prev.sports.filter(s => s !== sport)
+        : [...prev.sports, sport]
+    }));
+  };
+
+  const handleAmenityToggle = (amenity) => {
+    setFormData(prev => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter(a => a !== amenity)
+        : [...prev.amenities, amenity]
+    }));
+  };
+
   const handleImageChange = (e) => {
     const files = Array.from(e.target.files);
-    setSelectedImages(files);
-    
-    // Create previews
-    const previews = files.map(file => URL.createObjectURL(file));
-    setImagePreviews(previews);
-  };
-
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCheckboxChange = (e, category) => {
-    const { value, checked } = e.target;
-    
-    setFormData(prev => {
-      if (checked) {
-        return { ...prev, [category]: [...prev[category], value] };
-      } else {
-        return { ...prev, [category]: prev[category].filter(item => item !== value) };
+    if (files.length > 0) {
+      // Check if adding these files would exceed the 5 image limit
+      const totalImages = selectedImages.length + files.length;
+      const canAddCount = Math.min(files.length, 5 - selectedImages.length);
+      
+      if (canAddCount <= 0) {
+        setError('Maximum 5 images allowed');
+        return;
       }
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    try {
-      setLoading(true);
+      
+      // Add new files to existing selection (up to 5 total)
+      const newFiles = files.slice(0, canAddCount);
+      const updatedImages = [...selectedImages, ...newFiles];
+      setSelectedImages(updatedImages);
+      
+      // Create preview URLs for new files and add to existing previews
+      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+      setImagePreviews([...imagePreviews, ...newPreviews]);
+      
+      // Update form data
+      setFormData(prev => ({
+        ...prev,
+        images: updatedImages
+      }));
+      
+      // Clear any previous errors
       setError('');
-      
-      const formDataToSend = new FormData();
-      formDataToSend.append('name', formData.turfName);
-      formDataToSend.append('location', formData.location);
-      formDataToSend.append('description', formData.description);
-      formDataToSend.append('price', formData.price);
-      
-      // Append sports and amenities as JSON strings
-      formDataToSend.append('sports', JSON.stringify(formData.sports));
-      formDataToSend.append('amenities', JSON.stringify(formData.amenities));
-      
-      // Append images
-      selectedImages.forEach(image => {
-        formDataToSend.append('images', image);
-      });
-      
-      if (isEditing && editingTurfId) {
-        // If editing, append existing images
-        formDataToSend.append('existingImages', existingImagesString);
-        await turfService.updateTurf(editingTurfId, formDataToSend);
-      } else {
-        // If creating new
-        await turfService.createTurf(formDataToSend);
-      }
-      
-      // Reset form and state
-      setFormData({
-        turfName: '',
-        location: '',
-        description: '',
-        price: '',
-        sports: [],
-        amenities: [],
-        images: []
-      });
-      setSelectedImages([]);
-      setImagePreviews([]);
-      setShowAddTurfForm(false);
-      setIsEditing(false);
-      setEditingTurfId(null);
-      
-      // Reload turfs
-      loadMyTurfs();
-    } catch (err) {
-      setError(err?.response?.data?.message || 'Failed to save turf');
-    } finally {
-      setLoading(false);
     }
   };
 
-  const handleEditTurf = (turf) => {
-    setFormData({
-      turfName: turf.name,
-      location: turf.location,
-      description: turf.description,
-      price: turf.price.toString(),
-      sports: turf.sports || [],
-      amenities: turf.amenities || [],
-      images: []
-    });
-    
-    // Set existing images
-    if (turf.images && turf.images.length > 0) {
-      setExistingImagesString(turf.images.join(','));
-      setImagePreviews(turf.images.map(img => img));
-    } else {
-      setExistingImagesString('');
-      setImagePreviews([]);
-    }
-    
-    setIsEditing(true);
-    setEditingTurfId(turf.id);
-    setShowAddTurfForm(true);
-  };
-
-  const handleDeleteTurf = async (turfId) => {
-    if (!confirm('Are you sure you want to delete this turf? This action cannot be undone.')) {
-      return;
-    }
-    
-    try {
-      setLoading(true);
-      await turfService.deleteTurf(turfId);
-      loadMyTurfs();
-    } catch (err) {
-      alert(err?.response?.data?.message || 'Failed to delete turf');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleViewTurfDetails = (turfId) => {
+  const handleOpenViewTurf = (turfId) => {
     setViewTurfId(turfId);
     setShowTurfDetailsModal(true);
   };
 
-  const handleUpdateProfile = async (profileData) => {
+  const handleOpenEditTurf = (turf) => {
+    setIsEditing(true);
+    setEditingTurfId(turf.id);
+    // Prefill form fields from turf
+    const priceValue = turf.pricePerHour || turf.price || '';
+    const amenitiesArray = Array.isArray(turf.amenities)
+      ? turf.amenities
+      : (typeof turf.amenities === 'string'
+        ? turf.amenities.split(',').map((s) => s.trim()).filter(Boolean)
+        : []);
+
+    setFormData({
+      turfName: turf.name || '',
+      location: turf.location || '',
+      description: turf.description || '',
+      price: priceValue,
+      sports: [],
+      amenities: amenitiesArray,
+      images: [] // keep empty until user selects new files
+    });
+
+    // Prepare previews from existing images string, if any
+    const imagesStr = typeof turf.images === 'string' ? turf.images : '';
+    setExistingImagesString(imagesStr);
+    const previews = imagesStr
+      ? imagesStr.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+    setSelectedImages([]);
+    setImagePreviews(previews);
+
+    setShowAddTurfForm(true);
+  };
+
+  const removeImage = (index) => {
+    const newImages = selectedImages.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
+    
+    setSelectedImages(newImages);
+    setImagePreviews(newPreviews);
+    setFormData(prev => ({
+      ...prev,
+      images: newImages
+    }));
+  };
+
+  const handleSubmitRequest = async (e) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
     try {
-      await authService.updateProfile(profileData);
-      setUserProfile(profileData);
-      setShowPersonalDetailsModal(false);
-      alert('Profile updated successfully');
+      // Validate required fields
+      if (!formData.turfName || !formData.location || !formData.description || !formData.price) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
+      }
+
+      if (isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+        setError('Please enter a valid price');
+        setLoading(false);
+        return;
+      }
+
+      let payloadBase = {
+        name: formData.turfName,
+        description: formData.description,
+        location: formData.location,
+        pricePerHour: Number(formData.price),
+        amenities: formData.amenities.join(',')
+      };
+
+      // If user selected new images, convert and send as imageArray; otherwise keep previous images when editing
+      if (formData.images && formData.images.length > 0) {
+        const imageStrings = await Promise.all(
+          formData.images.map(file => {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(file);
+            });
+          })
+        );
+        payloadBase = { ...payloadBase, imageArray: imageStrings };
+      } else if (isEditing && existingImagesString) {
+        payloadBase = { ...payloadBase, images: existingImagesString };
+      }
+
+      console.log('Submitting turf with payload:', payloadBase, 'isEditing:', isEditing);
+
+      let result;
+      if (isEditing && editingTurfId) {
+        result = await turfService.updateTurf(editingTurfId, payloadBase);
+      } else {
+        result = await turfService.createTurf(payloadBase);
+      }
+      
+      console.log('Turf creation result:', result);
+      
+      // Show success message
+      alert(isEditing ? 'Turf updated successfully!' : 'Turf submitted for approval successfully!');
+      
+      setShowAddTurfForm(false);
+      setIsEditing(false);
+      setEditingTurfId(null);
+      setExistingImagesString('');
+      setFormData({ turfName: '', location: '', description: '', price: '', sports: [], amenities: [], images: [] });
+      setSelectedImages([]);
+      setImagePreviews([]);
+      await loadMyTurfs();
+      
     } catch (err) {
-      alert(err?.response?.data?.message || 'Failed to update profile');
+      console.error('Turf creation error:', err);
+      
+      let errorMessage = 'Failed to submit turf';
+      
+      if (err?.response?.data) {
+        errorMessage = err.response.data;
+      } else if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.toString) {
+        errorMessage = err.toString();
+      }
+      
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const renderOverviewTab = () => {
-    return (
-      <div className="space-y-6">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-green-100 text-green-600">
-                <MapPin size={20} />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-500">Total Turfs</p>
-                <p className="text-xl font-semibold">{myTurfs.length}</p>
-              </div>
-            </div>
+  const safeTurfs = Array.isArray(myTurfs) ? myTurfs : [];
+  const pendingTurfs = safeTurfs.filter(turf => !turf.isActive);
+  const activeTurfs = safeTurfs.filter(turf => turf.isActive);
+  
+  const stats = {
+    totalTurfs: safeTurfs.length,
+    pendingRequests: pendingTurfs.length,
+    totalBookings: ownerStats.totalBookings || safeTurfs.reduce((sum, turf) => sum + (turf.totalBookings || 0), 0),
+    totalRevenue: ownerStats.totalRevenue || safeTurfs.reduce((sum, turf) => sum + (turf.revenue || 0), 0)
+  };
+
+  const renderOverview = () => (
+    <div className="space-y-6">
+      {error && (
+        <div className="p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
+      )}
+      
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Owner Information</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-600">Name</label>
+            <p className="text-lg font-medium text-gray-900">{userProfile.firstName} {userProfile.lastName}</p>
           </div>
-          
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-blue-100 text-blue-600">
-                <Calendar size={20} />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-500">Total Bookings</p>
-                <p className="text-xl font-semibold">{ownerStats.totalBookings}</p>
-              </div>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600">Email</label>
+            <p className="text-lg font-medium text-gray-900">{userProfile.email}</p>
           </div>
-          
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-purple-100 text-purple-600">
-                <DollarSign size={20} />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-500">Total Revenue</p>
-                <p className="text-xl font-semibold">₹{ownerStats.totalRevenue}</p>
-              </div>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-600">Phone</label>
+            <p className="text-lg font-medium text-gray-900">{userProfile.phone}</p>
           </div>
-          
-          <div className="bg-white rounded-lg shadow p-4">
-            <div className="flex items-center">
-              <div className="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                <Star size={20} />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm text-gray-500">Avg. Rating</p>
-                <p className="text-xl font-semibold">4.5</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        {/* Personal Details Card */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Personal Details</h2>
-            <button 
-              onClick={() => setShowPersonalDetailsModal(true)}
-              className="text-sm text-green-600 hover:text-green-800"
-            >
-              Edit
-            </button>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <p className="text-sm text-gray-500">Name</p>
-              <p className="font-medium">{userProfile.firstName} {userProfile.lastName}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Email</p>
-              <p className="font-medium">{userProfile.email}</p>
-            </div>
-            <div>
-              <p className="text-sm text-gray-500">Phone</p>
-              <p className="font-medium">{userProfile.phone || 'Not provided'}</p>
-            </div>
-          </div>
-        </div>
-        
-        {/* Recent Bookings */}
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="px-6 py-4 border-b">
-            <h2 className="text-lg font-semibold text-gray-900">Recent Bookings</h2>
-          </div>
-          
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Turf
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Customer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Amount
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {turfBookings.length > 0 ? (
-                  turfBookings.map((booking) => (
-                    <tr key={booking.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
-                          {booking.turfName}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">{booking.bookingDate}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-500">
-                          {booking.startTime} - {booking.endTime}
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{booking.userName || 'N/A'}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">₹{booking.totalAmount}</div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="px-6 py-4 text-center text-sm text-gray-500">
-                      No recent bookings found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
+          <div>
+            <label className="block text-sm font-medium text-gray-600">Role</label>
+            <p className="text-lg font-medium text-gray-900">Turf Owner</p>
           </div>
         </div>
       </div>
-    );
-  };
 
-  const renderMyTurfsTab = () => {
-    return (
-      <div className="space-y-6">
-        {/* Add Turf Button */}
-        <div className="flex justify-end">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">My Turfs</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.totalTurfs}</p>
+            </div>
+            <MapPin className="w-8 h-8 text-green-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Pending Requests</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.pendingRequests}</p>
+            </div>
+            <Clock className="w-8 h-8 text-orange-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+              <p className="text-2xl font-semibold text-gray-900">{stats.totalBookings}</p>
+            </div>
+            <Calendar className="w-8 h-8 text-blue-600" />
+          </div>
+        </div>
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+              <p className="text-2xl font-semibold text-gray-900">₹{stats.totalRevenue.toLocaleString()}</p>
+            </div>
+            <DollarSign className="w-8 h-8 text-purple-600" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
           <button
-            onClick={() => {
-              setIsEditing(false);
-              setEditingTurfId(null);
-              setFormData({
-                turfName: '',
-                location: '',
-                description: '',
-                price: '',
-                sports: [],
-                amenities: [],
-                images: []
-              });
-              setSelectedImages([]);
-              setImagePreviews([]);
-              setShowAddTurfForm(true);
-            }}
-            className="flex items-center px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+            onClick={() => setShowAddTurfForm(true)}
+            className="flex flex-col sm:flex-row items-center justify-center sm:space-x-2 p-3 md:p-4 border-2 border-dashed border-green-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors"
           >
-            <Plus size={16} className="mr-2" />
-            Add New Turf
+            <Plus className="w-5 h-5 md:w-6 md:h-6 text-green-600 mb-1 sm:mb-0" />
+            <span className="text-green-600 font-medium text-sm md:text-base text-center sm:text-left">Add New Turf</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('bookings')}
+            className="flex flex-col sm:flex-row items-center justify-center sm:space-x-2 p-3 md:p-4 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            <Users className="w-5 h-5 md:w-6 md:h-6 text-blue-600 mb-1 sm:mb-0" />
+            <span className="text-blue-600 font-medium text-sm md:text-base text-center sm:text-left">Manage Bookings</span>
+          </button>
+          <button 
+            onClick={() => setShowPersonalDetailsModal(true)}
+            className="flex flex-col sm:flex-row items-center justify-center sm:space-x-2 p-3 md:p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
+          >
+            <User className="w-5 h-5 md:w-6 md:h-6 text-orange-600 mb-1 sm:mb-0" />
+            <span className="text-orange-600 font-medium text-sm md:text-base text-center sm:text-left">Personal Details</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('analytics')}
+            className="flex flex-col sm:flex-row items-center justify-center sm:space-x-2 p-3 md:p-4 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
+          >
+            <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-purple-600 mb-1 sm:mb-0" />
+            <span className="text-purple-600 font-medium text-sm md:text-base text-center sm:text-left">View Revenue</span>
           </button>
         </div>
-        
-        {/* Add/Edit Turf Form */}
-        {showAddTurfForm && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-lg font-semibold text-gray-900">
-                {isEditing ? 'Edit Turf' : 'Add New Turf'}
-              </h2>
-              <button
-                onClick={() => setShowAddTurfForm(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                <XCircle size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit}>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Turf Name
-                  </label>
-                  <input
-                    type="text"
-                    name="turfName"
-                    value={formData.turfName}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
+      </div>
+
+      <div className="bg-white rounded-xl shadow-md p-4 md:p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-3 md:mb-4">Recent Bookings</h3>
+        {safeTurfs.length > 0 ? (
+          <div className="space-y-2 md:space-y-3">
+            {safeTurfs.slice(0, 3).map((turf) => (
+              <div key={turf.id} className="flex items-center justify-between p-2 md:p-3 bg-green-50 rounded-lg">
+                <div className="overflow-hidden">
+                  <h4 className="font-medium text-gray-900 text-sm md:text-base truncate">{turf.name}</h4>
+                  <p className="text-xs md:text-sm text-gray-600">Example booking</p>
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Location
-                  </label>
-                  <input
-                    type="text"
-                    name="location"
-                    value={formData.location}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
-                </div>
-                
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description
-                  </label>
-                  <textarea
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    rows="3"
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-                    required
-                  ></textarea>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price per Hour (₹)
-                  </label>
-                  <input
-                    type="number"
-                    name="price"
-                    value={formData.price}
-                    onChange={handleInputChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-                    required
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Images
-                  </label>
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleImageChange}
-                    className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-                    accept="image/*"
-                  />
+                <div className="text-right ml-2">
+                  <div className="text-base md:text-lg font-semibold text-green-600">₹800</div>
                 </div>
               </div>
-              
-              {/* Image Previews */}
-              {imagePreviews.length > 0 && (
-                <div className="mb-4">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Image Previews:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative w-24 h-24">
-                        <img
-                          src={preview}
-                          alt={`Preview ${index + 1}`}
-                          className="w-full h-full object-cover rounded-md"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Sports Available
-                  </label>
-                  <div className="space-y-2">
-                    {sportsOptions.map((sport) => (
-                      <div key={sport} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id={`sport-${sport}`}
-                          value={sport}
-                          checked={formData.sports.includes(sport)}
-                          onChange={(e) => handleCheckboxChange(e, 'sports')}
-                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor={`sport-${sport}`} className="ml-2 text-sm text-gray-700">
-                          {sport}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Amenities
-                  </label>
-                  <div className="space-y-2 max-h-48 overflow-y-auto">
-                    {amenitiesOptions.map((amenity) => (
-                      <div key={amenity} className="flex items-center">
-                        <input
-                          type="checkbox"
-                          id={`amenity-${amenity}`}
-                          value={amenity}
-                          checked={formData.amenities.includes(amenity)}
-                          onChange={(e) => handleCheckboxChange(e, 'amenities')}
-                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded"
-                        />
-                        <label htmlFor={`amenity-${amenity}`} className="ml-2 text-sm text-gray-700">
-                          {amenity}
-                        </label>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              {error && (
-                <div className="mb-4 p-2 bg-red-100 text-red-700 rounded-md">
-                  {error}
-                </div>
-              )}
-              
-              <div className="flex justify-end">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-                >
-                  {loading ? 'Saving...' : isEditing ? 'Update Turf' : 'Add Turf'}
-                </button>
-              </div>
-            </form>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-6 md:py-8 text-gray-500">
+            <Calendar className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
+            <p>No turfs yet. Add your first turf to get started!</p>
           </div>
         )}
-        
-        {/* Turfs List */}
-        <div className="space-y-4">
-          {loading ? (
-            <div className="text-center py-4">
-              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-green-500 border-r-transparent"></div>
-              <p className="mt-2 text-gray-600">Loading your turfs...</p>
-            </div>
-          ) : myTurfs.length === 0 ? (
-            <div className="bg-white rounded-lg shadow p-6 text-center">
-              <p className="text-gray-600">You haven't added any turfs yet.</p>
-              <button
-                onClick={() => setShowAddTurfForm(true)}
-                className="mt-4 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                Add Your First Turf
-              </button>
-            </div>
-          ) : (
-            myTurfs.map((turf) => (
-              <div key={turf.id} className="bg-white rounded-lg shadow overflow-hidden">
-                <div className="md:flex">
-                  <div className="md:flex-shrink-0 h-48 md:h-auto md:w-48">
-                    <img
-                      className="h-full w-full object-cover"
-                      src={turf.images && turf.images.length > 0 ? turf.images[0] : 'https://via.placeholder.com/300x200?text=No+Image'}
-                      alt={turf.name}
-                    />
+      </div>
+    </div>
+  );
+
+  const renderMyTurfs = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-semibold text-gray-900">My Turfs</h3>
+        <button
+          onClick={() => setShowAddTurfForm(true)}
+          className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Add New Turf</span>
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="text-center py-12 bg-white rounded-xl">Loading…</div>
+      ) : safeTurfs.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {safeTurfs.map((turf) => (
+            <div key={turf.id} className={`bg-white rounded-xl shadow-md p-6 border-l-4 ${turf.isActive ? 'border-green-500' : 'border-orange-500'}`}>
+              {/* Turf Images */}
+              {turf.images && turf.images.split(',').length > 0 && turf.images.split(',')[0] !== '' && (
+                <div className="mb-4">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {turf.images.split(',').slice(0, 3).map((image, index) => (
+                      <img
+                        key={index}
+                        src={image.trim()}
+                        alt={`${turf.name} ${index + 1}`}
+                        className="w-full h-20 object-cover rounded-lg border border-gray-200"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ))}
                   </div>
-                  <div className="p-6 flex-1">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="text-xl font-semibold text-gray-900">{turf.name}</h3>
-                        <p className="mt-1 text-sm text-gray-600 flex items-center">
-                          <MapPin size={16} className="mr-1" /> {turf.location}
-                        </p>
-                      </div>
-                      <p className="text-lg font-bold text-green-600">₹{turf.price}/hr</p>
-                    </div>
-                    
-                    <p className="mt-3 text-sm text-gray-500 line-clamp-2">
-                      {turf.description}
-                    </p>
-                    
-                    <div className="mt-4">
-                      <p className="text-xs text-gray-500">Sports:</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {turf.sports && turf.sports.map((sport) => (
-                          <span
-                            key={sport}
-                            className="px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full"
-                          >
-                            {sport}
-                          </span>
+                </div>
+              )}
+
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h5 className="text-lg font-semibold text-gray-900">{turf.name}</h5>
+                  <div className="flex items-center text-gray-600 mt-1">
+                    <MapPin className="w-4 h-4 mr-1" />
+                    {turf.location}
+                  </div>
+                </div>
+                <span className={`px-3 py-1 rounded-full text-sm ${turf.isActive ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>
+                  {turf.isActive ? 'Active' : 'Pending Approval'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 md:gap-4 mb-3 md:mb-4">
+                <div>
+                  <span className="text-xs md:text-sm text-gray-600">Price:</span>
+                  <p className="font-semibold text-green-600 text-sm md:text-base">₹{turf.pricePerHour || turf.price}/hr</p>
+                </div>
+                <div>
+                  <span className="text-xs md:text-sm text-gray-600">Rating:</span>
+                  <div className="flex items-center">
+                    <Star className="w-3 h-3 md:w-4 md:h-4 text-yellow-400 fill-current" />
+                    <span className="ml-1 font-semibold text-sm md:text-base">{turf.rating || '—'}</span>
+                  </div>
+                </div>
+                <div>
+                  <span className="text-xs md:text-sm text-gray-600">Bookings:</span>
+                  <p className="font-semibold text-sm md:text-base">{turf.totalBookings || 0}</p>
+                </div>
+                <div>
+                  <span className="text-xs md:text-sm text-gray-600">Revenue:</span>
+                  <p className="font-semibold text-sm md:text-base">₹{(turf.revenue || 0).toLocaleString()}</p>
+                </div>
+              </div>
+
+              <div className="flex space-x-2 md:space-x-3">
+                <button onClick={() => handleOpenViewTurf(turf.id)} className="flex items-center space-x-1 px-2 md:px-3 py-1.5 md:py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-xs md:text-sm">
+                  <Eye className="w-3 h-3 md:w-4 md:h-4" />
+                  <span>View</span>
+                </button>
+                <button onClick={() => handleOpenEditTurf(turf)} className="flex items-center space-x-1 px-2 md:px-3 py-1.5 md:py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-xs md:text-sm">
+                  <Edit className="w-3 h-3 md:w-4 md:h-4" />
+                  <span>Edit</span>
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="text-center py-12 bg-white rounded-xl">
+          <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+          <p className="text-gray-500 mb-4">No turfs added yet</p>
+          <button
+            onClick={() => setShowAddTurfForm(true)}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+          >
+            Add Your First Turf
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderBookingsTab = () => (
+    <div className="space-y-6">
+      <h3 className="text-xl font-semibold text-gray-900">Manage Bookings</h3>
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Turf</label>
+            <select
+              value={selectedTurfId}
+              onChange={(e) => setSelectedTurfId(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="">— Choose —</option>
+              {safeTurfs.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <div className="mt-6">
+          {loadingBookings ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg">Loading…</div>
+          ) : selectedTurfId && turfBookings.length > 0 ? (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date & Time</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Details</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact Info</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Payment</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {turfBookings.map(b => (
+                    <tr key={b.id}>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">{b.bookingDate}</div>
+                        <div className="text-sm text-gray-500">{b.startTime} - {b.endTime}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
+                          {b.fullName || b.userName || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{b.phoneNumber || b.userPhone || 'N/A'}</div>
+                        <div className="text-sm text-gray-500">{b.email || b.userEmail || 'N/A'}</div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">
+                          {b.paymentMode ? b.paymentMode : (b.status === 'PENDING' ? 'Pending' : 'Not Paid')}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          ₹{b.totalAmount || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                          ${b.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 
+                            b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
+                            b.status === 'CANCELLED' ? 'bg-red-100 text-red-800' : 
+                            b.status === 'OFFLINE' ? 'bg-gray-100 text-gray-800' : 
+                            'bg-blue-100 text-blue-800'}`}>
+                          {b.status || 'CONFIRMED'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              
+              {/* Pagination Controls */}
+              <div className="p-4 flex items-center justify-between border-t">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => { if (bookingPage > 0) { setBookingPage(bookingPage - 1); } }}
+                    disabled={bookingPage === 0}
+                    className={`px-3 py-2 rounded-md text-sm ${bookingPage === 0 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => { if (bookingPage + 1 < bookingTotalPages) { setBookingPage(bookingPage + 1); } }}
+                    disabled={bookingPage + 1 >= bookingTotalPages}
+                    className={`px-3 py-2 rounded-md text-sm ${bookingPage + 1 >= bookingTotalPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                  >
+                    Next
+                  </button>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-600">
+                    Page {bookingPage + 1} of {Math.max(1, bookingTotalPages)}
+                  </span>
+                  
+                  {bookingTotalPages > 1 && (
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm text-gray-600">Go to:</label>
+                      <select
+                        value={bookingPage}
+                        onChange={(e) => setBookingPage(parseInt(e.target.value, 10))}
+                        className="border rounded-md px-2 py-1 text-sm"
+                      >
+                        {Array.from({ length: bookingTotalPages }, (_, i) => (
+                          <option key={i} value={i}>Page {i + 1}</option>
                         ))}
-                      </div>
+                      </select>
                     </div>
-                    
-                    <div className="mt-4 flex justify-between items-center">
-                      <div className="flex space-x-2">
-                        <button
-                          onClick={() => handleViewTurfDetails(turf.id)}
-                          className="flex items-center px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200"
-                        >
-                          <Eye size={14} className="mr-1" /> View
-                        </button>
-                        <button
-                          onClick={() => handleEditTurf(turf)}
-                          className="flex items-center px-3 py-1 text-sm bg-yellow-100 text-yellow-700 rounded-md hover:bg-yellow-200"
-                        >
-                          <Edit size={14} className="mr-1" /> Edit
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTurf(turf.id)}
-                          className="flex items-center px-3 py-1 text-sm bg-red-100 text-red-700 rounded-md hover:bg-red-200"
-                        >
-                          <XCircle size={14} className="mr-1" /> Delete
-                        </button>
-                      </div>
-                      
-                      <div className="flex items-center">
-                        <button
-                          onClick={() => {
-                            setSelectedTurfId(turf.id);
-                            setActiveTab('bookings');
-                          }}
-                          className="text-sm text-green-600 hover:text-green-800"
-                        >
-                          View Bookings
-                        </button>
-                      </div>
-                    </div>
+                  )}
+                  
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm text-gray-600">Show:</label>
+                    <select
+                      value={bookingSize}
+                      onChange={(e) => {
+                        setBookingSize(parseInt(e.target.value, 10));
+                        setBookingPage(0); // Reset to first page when changing page size
+                      }}
+                      className="border rounded-md px-2 py-1 text-sm"
+                    >
+                      <option value="5">5 per page</option>
+                      <option value="10">10 per page</option>
+                      <option value="20">20 per page</option>
+                      <option value="50">50 per page</option>
+                    </select>
                   </div>
                 </div>
               </div>
-            ))
+              
+              <div className="p-4 flex items-center justify-end border-t">
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm text-gray-600">Page Size:</label>
+                  <select
+                    value={bookingSize}
+                    onChange={(e) => {
+                      const size = parseInt(e.target.value, 10);
+                      setBookingSize(size);
+                      setBookingPage(0); // Reset to first page when changing page size
+                    }}
+                    className="border rounded-md px-2 py-1"
+                  >
+                    {[5, 10, 20, 50].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+              </div>
+            </div>
+          ) : selectedTurfId ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg text-gray-600">No bookings for this turf</div>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg text-gray-600">Select a turf to view bookings</div>
           )}
         </div>
       </div>
-    );
-  };
+    </div>
+  );
 
-  const renderBookingsTab = () => {
-    return (
-      <div className="space-y-6">
-        {/* Turf Selector */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Turf to View Bookings
-          </label>
-          <select
-            className="w-full md:w-1/2 p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
-            value={selectedTurfId}
-            onChange={(e) => setSelectedTurfId(e.target.value)}
-          >
-            <option value="">Select a turf</option>
-            {myTurfs.map((turf) => (
-              <option key={turf.id} value={turf.id}>
-                {turf.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        
-        {/* Bookings Table */}
-        {selectedTurfId ? (
-          <div className="bg-white rounded-lg shadow overflow-hidden">
-            <div className="px-6 py-4 border-b">
-              <h2 className="text-lg font-semibold text-gray-900">
-                Bookings for {myTurfs.find(t => t.id === selectedTurfId)?.name || 'Selected Turf'}
-              </h2>
+  const renderAddTurfForm = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-4 md:p-6">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900">Add New Turf</h3>
+            <button
+              onClick={() => setShowAddTurfForm(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <XCircle className="w-5 h-5 md:w-6 md:h-6" />
+            </button>
+          </div>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
+          )}
+
+          <form onSubmit={handleSubmitRequest} className="space-y-4 md:space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">
+                Turf Name *
+              </label>
+              <input
+                type="text"
+                value={formData.turfName}
+                onChange={(e) => handleInputChange('turfName', e.target.value)}
+                className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter turf name"
+                required
+              />
             </div>
-            
-            {loadingBookings ? (
-              <div className="text-center py-4">
-                <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-green-500 border-r-transparent"></div>
-                <p className="mt-2 text-gray-600">Loading bookings...</p>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Location *
+              </label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => handleInputChange('location', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter complete address"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Describe your turf facilities and features"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Price per Hour (₹) *
+              </label>
+              <input
+                type="number"
+                value={formData.price}
+                onChange={(e) => handleInputChange('price', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter hourly rate"
+                min="100"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Sports Available
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {sportsOptions.map((sport) => (
+                  <label key={sport} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.sports.includes(sport)}
+                      onChange={() => handleSportToggle(sport)}
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-gray-700">{sport}</span>
+                  </label>
+                ))}
               </div>
-            ) : turfBookings.length === 0 ? (
-              <div className="p-6 text-center">
-                <p className="text-gray-600">No bookings found for this turf.</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Amenities
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {amenitiesOptions.map((amenity) => (
+                  <label key={amenity} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.amenities.includes(amenity)}
+                      onChange={() => handleAmenityToggle(amenity)}
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-gray-700">{amenity}</span>
+                  </label>
+                ))}
               </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Booking ID
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Time
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Customer
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Amount
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {turfBookings.map((booking) => (
-                        <tr key={booking.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            #{booking.id.substring(0, 8)}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {booking.bookingDate}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            {booking.startTime} - {booking.endTime}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="text-sm font-medium text-gray-900">
-                              {booking.userName || 'N/A'}
-                            </div>
-                            <div className="text-sm text-gray-500">
-                              {booking.userEmail || 'N/A'}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                              booking.status === 'CONFIRMED' 
-                                ? 'bg-green-100 text-green-800' 
-                                : booking.status === 'CANCELLED' 
-                                ? 'bg-red-100 text-red-800'
-                                : booking.status === 'COMPLETED'
-                                ? 'bg-blue-100 text-blue-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {booking.status}
-                            </span>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            ₹{booking.totalAmount}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                
-                {/* Pagination */}
-                {bookingTotalPages > 1 && (
-                  <div className="px-6 py-3 flex items-center justify-between border-t">
-                    <div className="flex-1 flex justify-between sm:hidden">
-                      <button
-                        onClick={() => setBookingPage(Math.max(0, bookingPage - 1))}
-                        disabled={bookingPage === 0}
-                        className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                          bookingPage === 0
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        Previous
-                      </button>
-                      <button
-                        onClick={() => setBookingPage(Math.min(bookingTotalPages - 1, bookingPage + 1))}
-                        disabled={bookingPage === bookingTotalPages - 1}
-                        className={`relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md ${
-                          bookingPage === bookingTotalPages - 1
-                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                            : 'bg-white text-gray-700 hover:bg-gray-50'
-                        }`}
-                      >
-                        Next
-                      </button>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Turf Images (Max 5 images)
+              </label>
+              <div className="space-y-4">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.5 0 5.5 5.5 0 0 0 0 6.5a5.56 5.56 0 0 0 2.975 4.5H0v3h13Z"/>
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 13h3l-3-3-3 3h3Z"/>
+                      </svg>
+                      <p className="mb-2 text-sm text-gray-500">
+                        <span className="font-semibold">Click to upload</span> turf images
+                      </p>
+                      <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5 images)</p>
                     </div>
-                    <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-                      <div>
-                        <p className="text-sm text-gray-700">
-                          Showing <span className="font-medium">{bookingPage * bookingSize + 1}</span> to{' '}
-                          <span className="font-medium">
-                            {Math.min((bookingPage + 1) * bookingSize, bookingTotalCount)}
-                          </span>{' '}
-                          of <span className="font-medium">{bookingTotalCount}</span> results
-                        </p>
-                      </div>
-                      <div>
-                        <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      multiple 
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                </div>
+
+                {imagePreviews.length > 0 && (
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-sm font-medium text-gray-700">Selected Images ({imagePreviews.length}/5)</h4>
+                      {imagePreviews.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedImages([]);
+                            setImagePreviews([]);
+                            setFormData(prev => ({ ...prev, images: [] }));
+                          }}
+                          className="text-xs text-red-600 hover:text-red-800"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {imagePreviews.map((preview, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square overflow-hidden rounded-lg border border-gray-200">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
                           <button
-                            onClick={() => setBookingPage(Math.max(0, bookingPage - 1))}
-                            disabled={bookingPage === 0}
-                            className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
-                              bookingPage === 0
-                                ? 'text-gray-300 cursor-not-allowed'
-                                : 'text-gray-500 hover:bg-gray-50'
-                            }`}
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-sm"
                           >
-                            <span className="sr-only">Previous</span>
-                            &larr;
+                            ×
                           </button>
-                          
-                          {[...Array(bookingTotalPages).keys()].map((page) => (
-                            <button
-                              key={page}
-                              onClick={() => setBookingPage(page)}
-                              className={`relative inline-flex items-center px-4 py-2 border ${
-                                bookingPage === page
-                                  ? 'bg-green-50 border-green-500 text-green-600 z-10'
-                                  : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                              } text-sm font-medium`}
-                            >
-                              {page + 1}
-                            </button>
-                          ))}
-                          
-                          <button
-                            onClick={() => setBookingPage(Math.min(bookingTotalPages - 1, bookingPage + 1))}
-                            disabled={bookingPage === bookingTotalPages - 1}
-                            className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                              bookingPage === bookingTotalPages - 1
-                                ? 'text-gray-300 cursor-not-allowed'
-                                : 'text-gray-500 hover:bg-gray-50'
-                            }`}
-                          >
-                            <span className="sr-only">Next</span>
-                            &rarr;
-                          </button>
-                        </nav>
-                      </div>
+                        </div>
+                      ))}
+                      {imagePreviews.length < 5 && (
+                        <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                          <div className="flex flex-col items-center justify-center p-2 text-center">
+                            <svg className="w-6 h-6 mb-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <span className="text-xs text-gray-500">Add more</span>
+                          </div>
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            multiple 
+                            accept="image/*"
+                            onChange={handleImageChange}
+                          />
+                        </label>
+                      )}
                     </div>
                   </div>
                 )}
-              </>
+              </div>
+            </div>
+
+            <div className="flex space-x-4 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAddTurfForm(false)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-70"
+              >
+                {loading ? 'Submitting…' : 'Submit for Approval'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {showPersonalDetailsModal && (
+          <PersonalDetailsModal
+            isOpen={showPersonalDetailsModal}
+            onClose={() => setShowPersonalDetailsModal(false)}
+            onProfileUpdate={handleProfileUpdate}
+          />
+        )}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Turf Owner Dashboard</h1>
+          <p className="text-gray-600 mt-2">Manage your turfs and track performance</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-md mb-6">
+          <div className="border-b border-gray-200">
+            <div className="relative">
+              {/* Mobile dropdown selector */}
+              <div className="md:hidden p-2">
+                <select 
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="overview">Overview</option>
+                  <option value="turfs">My Turfs</option>
+                  <option value="bookings">Bookings</option>
+                  <option value="offlineBookings">Offline Bookings</option>
+                  <option value="analytics">Analytics</option>
+                </select>
+              </div>
+              
+              {/* Desktop tabs */}
+              <nav className="hidden md:flex -mb-px overflow-x-auto">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'overview'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => setActiveTab('turfs')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'turfs'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  My Turfs
+                </button>
+                <button
+                  onClick={() => setActiveTab('bookings')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'bookings'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Bookings
+                </button>
+                <button
+                  onClick={() => setActiveTab('offlineBookings')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'offlineBookings'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Offline Bookings
+                </button>
+                <button
+                  onClick={() => setActiveTab('analytics')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'analytics'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Analytics
+                </button>
+              </nav>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {activeTab === 'overview' && renderOverview()}
+            {activeTab === 'turfs' && renderMyTurfs()}
+            {activeTab === 'bookings' && renderBookingsTab()}
+            {activeTab === 'offlineBookings' && renderOfflineBookingsTab()}
+            {activeTab === 'analytics' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+                        <p className="text-2xl font-semibold text-gray-900">{ownerStats.totalBookings}</p>
+                      </div>
+                      <Calendar className="w-8 h-8 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                        <p className="text-2xl font-semibold text-gray-900">₹{ownerStats.totalRevenue.toLocaleString()}</p>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-purple-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Active Turfs</p>
+                        <p className="text-2xl font-semibold text-gray-900">{safeTurfs.filter(t => t.isActive).length}</p>
+                      </div>
+                      <MapPin className="w-8 h-8 text-green-600" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">By Turf</h3>
+                  {safeTurfs.length === 0 ? (
+                    <div className="text-gray-600">No turfs yet.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {safeTurfs.map((turf) => (
+                        <div key={turf.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div>
+                            <div className="font-medium text-gray-900">{turf.name}</div>
+                            <div className="text-sm text-gray-600">₹{(turf.pricePerHour || turf.price || 0)}/hr</div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <div className="text-right">
+                              <div className="text-sm text-gray-600">Status</div>
+                              <div className="text-sm font-semibold">{turf.isActive ? 'Active' : 'Pending'}</div>
+                            </div>
+                            <button
+                              onClick={() => { setSelectedTurfId(String(turf.id)); setActiveTab('bookings'); }}
+                              className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+                            >
+                              View bookings
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
             )}
           </div>
-        ) : (
-          <div className="bg-white rounded-lg shadow p-6 text-center">
-            <p className="text-gray-600">
-              Please select a turf to view its bookings.
-            </p>
-          </div>
-        )}
+        </div>
       </div>
-    );
-  };
 
+      {/* Render Offline Bookings Tab */}
+    </div>
+  );
+  
   const renderOfflineBookingsTab = () => {
     return (
       <div className="space-y-6">
@@ -1034,7 +1273,7 @@ const TurfOwnerDashboard = () => {
               }
             >
               <option value="">Select a turf</option>
-              {myTurfs.map((turf) => (
+              {safeTurfs.map((turf) => (
                 <option key={turf.id} value={turf.id}>
                   {turf.name}
                 </option>
@@ -1127,8 +1366,7 @@ const TurfOwnerDashboard = () => {
         </button>
       </div>
 
-     {/* Display Offline Bookings */}
-      
+      {/* Display Offline Bookings */}
       {offlineBookingData.turfId ? (
         <>
           {loadingOfflineBookings ? (
@@ -1203,100 +1441,6 @@ const TurfOwnerDashboard = () => {
             Please select a turf to manage offline bookings.
           </p>
         </div>
-      )}
-    </div>
-    );
-  };
-
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-4 md:mb-0">
-          Turf Owner Dashboard
-        </h1>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setShowPersonalDetailsModal(true)}
-            className="flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            <User size={16} className="mr-2" />
-            My Profile
-          </button>
-        </div>
-      </div>
-      
-      {/* Tabs */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'overview'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Overview
-          </button>
-          <button
-            onClick={() => setActiveTab('myTurfs')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'myTurfs'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            My Turfs
-          </button>
-          <button
-            onClick={() => setActiveTab('bookings')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'bookings'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Bookings
-          </button>
-          <button
-            onClick={() => setActiveTab('offlineBookings')}
-            className={`py-4 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'offlineBookings'
-                ? 'border-green-500 text-green-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            Offline Bookings
-          </button>
-        </nav>
-      </div>
-      
-      {/* Tab Content */}
-      <div>
-        {activeTab === 'overview' && renderOverviewTab()}
-        {activeTab === 'myTurfs' && renderMyTurfsTab()}
-        {activeTab === 'bookings' && renderBookingsTab()}
-        {activeTab === 'offlineBookings' && renderOfflineBookingsTab()}
-      </div>
-      
-      {/* Personal Details Modal */}
-      {showPersonalDetailsModal && (
-        <PersonalDetailsModal
-          userProfile={userProfile}
-          onClose={() => setShowPersonalDetailsModal(false)}
-          onSave={handleUpdateProfile}
-        />
-      )}
-      
-      {/* Turf Details Modal */}
-      {showTurfDetailsModal && viewTurfId && (
-        <TurfDetailsModal
-          turfId={viewTurfId}
-          onClose={() => {
-            setShowTurfDetailsModal(false);
-            setViewTurfId(null);
-          }}
-        />
       )}
     </div>
   );

@@ -6,6 +6,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
 import api from './services/api'; // Ensure you've configured api.js with axios and withCredentials:true
+import { authService } from './services/authService';
 
 // Lazy load page components
 const Home = lazy(() => import('./pages/Home'));

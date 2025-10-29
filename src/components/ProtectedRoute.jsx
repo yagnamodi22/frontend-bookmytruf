@@ -118,8 +118,13 @@ const ProtectedRoute = ({ children, roles }) => {
     </div>;
   }
 
-  // If not authenticated, don't redirect, just return null
-  return isAuthenticated && hasRequiredRole ? children : null;
+  // If not authenticated, redirect to login page
+  if (!isAuthenticated) {
+    return <Navigate to="/login" />;
+  }
+  
+  // If authenticated but doesn't have required role, return null
+  return hasRequiredRole ? children : null;
 };
 
 export default ProtectedRoute;

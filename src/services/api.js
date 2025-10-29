@@ -45,10 +45,8 @@ api.interceptors.response.use(
       localStorage.removeItem('user');
       sessionStorage.setItem('authError', 'Session expired. Please log in again.');
 
-      // Redirect to login if not already there
-      if (!window.location.pathname.includes('/login')) {
-        window.location.href = '/login';
-      }
+      // Removed automatic redirect to login page
+      // This prevents auto-login when opening the website
     }
 
     return Promise.reject(error);

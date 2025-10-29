@@ -340,7 +340,7 @@ const Booking = () => {
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Date & Time</h3>
-        <div className="grid grid-cols-1 gap-6">
+        <div className="grid grid-cols-1 gap-6 max-w-full">
           <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-2">Date</label>
             <input
@@ -348,15 +348,15 @@ const Booking = () => {
               value={bookingData.date}
               onChange={(e) => handleInputChange('date', e.target.value)}
               min={new Date().toISOString().split('T')[0]}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 max-w-full"
-              style={{ maxWidth: '100%', boxSizing: 'border-box' }}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+              style={{ width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}
               required
             />
           </div>
-          <div>
+          <div className="w-full">
             <label className="block text-sm font-medium text-gray-700 mb-2">Select Time Slot(s)</label>
-            <div className="overflow-x-auto pb-2 -mx-2 px-2" style={{ scrollbarWidth: 'thin' }}>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 min-w-max sm:min-w-0">
+            <div className="overflow-x-auto pb-2 -mx-2 px-2" style={{ scrollbarWidth: 'thin', WebkitOverflowScrolling: 'touch' }}>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2 min-w-max sm:min-w-0 max-w-full">
                 {timeSlots.map((slot) => {
                   const { startTime } = parseTimesFromSlot(slot);
                   const start = startTime.slice(0,5);
@@ -386,7 +386,7 @@ const Booking = () => {
                       type="button"
                       onClick={() => toggleSlot(slot)}
                       disabled={isBooked || isPastSlot}
-                      className={`px-2 py-2 rounded-lg text-xs sm:text-sm border whitespace-nowrap transition-colors w-full ${
+                      className={`px-2 py-2 rounded-lg text-xs sm:text-sm border whitespace-nowrap transition-colors w-full text-center ${
                         isBooked || isPastSlot
                           ? 'bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed'
                           : isSelected

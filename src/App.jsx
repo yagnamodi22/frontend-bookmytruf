@@ -29,28 +29,15 @@ function App() {
   const [isOwnerLoggedIn, setIsOwnerLoggedIn] = useState(false);
   const [owner, setOwner] = useState(null);
 
-  // On mount, check if user has a valid session via cookie by fetching profile
+  // Removed automatic authentication check on mount to prevent auto-login
+  // This ensures users start at the home page without being logged in automatically
   useEffect(() => {
-    api.get('/auth/profile')
-      .then(res => {
-        if (res.data && res.data.email) {
-          setIsLoggedIn(true);
-          setUser(res.data);
-          const role = (res.data.role || '').toLowerCase();
-          if (role === 'admin') {
-            setIsAdminLoggedIn(true);
-            setAdmin(res.data);
-          } else if (role === 'owner') {
-            setIsOwnerLoggedIn(true);
-            setOwner(res.data);
-          }
-        } else {
-          clearAllAuthState();
-        }
-      })
-      .catch(() => {
-        clearAllAuthState();
-      });
+    // Clear any existing auth state to ensure fresh start
+    clearAllAuthState();
+    
+    // Remove any stored tokens/user data that might cause auto-login
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
   }, []);
 
   const clearAllAuthState = () => {

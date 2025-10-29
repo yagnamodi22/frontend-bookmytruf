@@ -63,6 +63,14 @@ const TurfOwnerLogin = ({ setIsOwnerLoggedIn, setOwner }) => {
           return;
         }
         
+        // Store authentication data in localStorage for persistence
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data));
+        localStorage.setItem('userType', 'owner');
+        
+        // Set authorization header for future API requests
+        authService.setAuthHeader(data.token);
+        
         setOwner(data);
         setIsOwnerLoggedIn(true);
         navigate('/turf-owner/dashboard');

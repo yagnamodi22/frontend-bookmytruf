@@ -73,6 +73,10 @@ export const authService = {
     } finally {
       localStorage.removeItem('token');
       localStorage.removeItem('user');
+      localStorage.removeItem('userType');
+      
+      // Clear authorization header
+      delete api.defaults.headers.common['Authorization'];
       sessionStorage.clear();
       if (caches && typeof caches.keys === 'function') {
         try {
@@ -91,6 +95,14 @@ export const authService = {
   getCurrentUserRole: () => {
     const user = JSON.parse(localStorage.getItem('user'));
     return user?.role?.toLowerCase();
+  },
+
+  setAuthHeader: (token) => {
+    if (token) {
+      api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      delete api.defaults.headers.common['Authorization'];
+    }
   },
 
   isAuthenticated: () => {

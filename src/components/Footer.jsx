@@ -51,7 +51,7 @@ const Footer = () => {
               <li><a href="/turfs" className="text-gray-400 hover:text-green-400 transition-colors">All Turfs</a></li>
               <li><a href="/about" className="text-gray-400 hover:text-green-400 transition-colors">About Us</a></li>
               <li><a href="/contact" className="text-gray-400 hover:text-green-400 transition-colors">Contact</a></li>
-              <li><a href="/terms" className="text-gray-400 hover:text-green-400 transition-colors">Terms & Conditions</a></li>
+              
             </ul>
           </div>
 
@@ -90,7 +90,7 @@ const Footer = () => {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center">
           <p className="text-gray-400">
-            © 2024 {settings.site_name || 'BookMyTurf'}. All rights reserved. | Developed for College Project
+            © 2025 {settings.site_name || 'BookMyTurf'}. All rights reserved. | Developed for College Project
           </p>
         </div>
       </div>

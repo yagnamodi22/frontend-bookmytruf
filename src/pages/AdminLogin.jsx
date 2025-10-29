@@ -60,6 +60,10 @@ const AdminLogin = ({ setIsAdminLoggedIn, setAdmin }) => {
       // Store token and user data
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data));
+      localStorage.setItem('userType', 'admin');
+      
+      // Set authorization header for future API requests
+      authService.setAuthHeader(data.token);
       
       setAdmin(data);
       setIsAdminLoggedIn(true);

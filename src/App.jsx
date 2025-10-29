@@ -29,15 +29,38 @@ function App() {
   const [isOwnerLoggedIn, setIsOwnerLoggedIn] = useState(false);
   const [owner, setOwner] = useState(null);
 
-  // Removed automatic authentication check on mount to prevent auto-login
-  // This ensures users start at the home page without being logged in automatically
+  // Check for existing authentication on mount to maintain session persistence
   useEffect(() => {
-    // Clear any existing auth state to ensure fresh start
-    clearAllAuthState();
+    // Check for existing token and restore session
+    const token = localStorage.getItem('token');
+    const userType = localStorage.getItem('userType');
+    const userData = localStorage.getItem('user');
     
-    // Remove any stored tokens/user data that might cause auto-login
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    if (token && userType && userData) {
+      // Set authorization header
+      authService.setAuthHeader(token);
+      
+      try {
+        const user = JSON.parse(userData);
+        
+        // Restore session based on user type
+        if (userType === 'user') {
+          setIsLoggedIn(true);
+          setUser(user);
+        } else if (userType === 'admin') {
+          setIsAdminLoggedIn(true);
+          setAdmin(user);
+        } else if (userType === 'owner') {
+          setIsOwnerLoggedIn(true);
+          setOwner(user);
+        }
+      } catch (error) {
+        console.error('Error restoring session:', error);
+        clearAllAuthState();
+      }
+    } else {
+      clearAllAuthState();
+    }
   }, []);
 
   const clearAllAuthState = () => {

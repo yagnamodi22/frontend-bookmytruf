@@ -54,11 +54,20 @@ const Login = ({ setIsLoggedIn, setUser }) => {
             // Clear session and show error
             localStorage.removeItem('token');
             localStorage.removeItem('user');
+            localStorage.removeItem('userType');
             setIsLoggedIn(false);
             setError('Please use the correct portal to sign in (Owner/Admin).');
             return;
           }
 
+          // Store authentication data in localStorage for persistence
+          localStorage.setItem('token', data.token);
+          localStorage.setItem('user', JSON.stringify(data));
+          localStorage.setItem('userType', 'user');
+          
+          // Set authorization header for future API requests
+          authService.setAuthHeader(data.token);
+          
           setUser(data);
           setIsLoggedIn(true);
           navigate('/dashboard');

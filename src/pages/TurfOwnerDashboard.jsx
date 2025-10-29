@@ -1447,17 +1447,15 @@ const renderOfflineBookingsTab = () => {
       )}
     </>
   );
-};
-
-// ✅ Main component return (example)
-return (
-  <div className="p-6">
-    {activeTab === "overview" && renderOverviewTab()}
-    {activeTab === "bookings" && renderBookingsTab()}
-    {activeTab === "offlineBookings" && renderOfflineBookingsTab()}
-  </div>
-);
-
+  
+  // Main component return
+  return (
+    <div className="p-6">
+      {activeTab === "overview" && renderOverviewTab()}
+      {activeTab === "bookings" && renderBookingsTab()}
+      {activeTab === "offlineBookings" && renderOfflineBookingsTab()}
+    </div>
+  );
 };
 
 export default TurfOwnerDashboard;

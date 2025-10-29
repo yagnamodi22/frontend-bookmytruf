@@ -816,12 +816,12 @@ const TurfOwnerDashboard = () => {
                 </div>
               </div>
               
-              <div className="p-4 flex items-center justify-end border-t">
-                <div className="flex items-center space-x-2">
+             
+                
                   
                 </div>
-              </div>
-            </div>
+           
+            
           ) : selectedTurfId ? (
             <div className="text-center py-8 bg-gray-50 rounded-lg text-gray-600">No bookings for this turf</div>
           ) : (

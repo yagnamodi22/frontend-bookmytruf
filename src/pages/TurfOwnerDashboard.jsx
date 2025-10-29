@@ -48,10 +48,6 @@ const TurfOwnerDashboard = () => {
   const [error, setError] = useState('');
 
   const [myTurfs, setMyTurfs] = useState([]);
-  const [ownerStats, setOwnerStats] = useState({
-    totalBookings: 0,
-    totalRevenue: 0
-  });
   const [selectedTurfId, setSelectedTurfId] = useState('');
   const [viewTurfId, setViewTurfId] = useState(null);
   const [showTurfDetailsModal, setShowTurfDetailsModal] = useState(false);
@@ -78,119 +74,254 @@ const TurfOwnerDashboard = () => {
     'First Aid', 'Security', 'WiFi'
   ];
 
-  // Load user profile
-  useEffect(() => {
-    const fetchUserProfile = async () => {
-      try {
-        const userData = await authService.getUserProfile();
-        if (userData) {
-          setUserProfile({
-            firstName: userData.firstName || '',
-            lastName: userData.lastName || '',
-            email: userData.email || '',
-            phone: userData.phone || ''
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching user profile:', err);
-      }
-    };
-
-    fetchUserProfile();
-  }, []);
-
-  // Load owner's turfs
-  useEffect(() => {
-    loadMyTurfs();
-  }, []);
-
-  // Load owner stats
-  useEffect(() => {
-    const fetchOwnerStats = async () => {
-      try {
-        const stats = await turfService.getOwnerStats();
-        if (stats) {
-          setOwnerStats({
-            totalBookings: stats.totalBookings || 0,
-            totalRevenue: stats.totalRevenue || 0
-          });
-        }
-      } catch (err) {
-        console.error('Error fetching owner stats:', err);
-      }
-    };
-
-    fetchOwnerStats();
-  }, []);
-
-  // Load bookings when turf is selected
-  useEffect(() => {
-    if (selectedTurfId && activeTab === 'bookings') {
-      loadTurfBookings();
-    }
-  }, [selectedTurfId, bookingPage, bookingSize, activeTab]);
-
-  // Load offline bookings when turf is selected
-  useEffect(() => {
-    if (selectedTurfId && activeTab === 'offlineBookings') {
-      loadOfflineBookings();
-    }
-  }, [selectedTurfId, activeTab]);
+  const normalize = (data) => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (Array.isArray(data.content)) return data.content;
+    return [];
+  };
 
   const loadMyTurfs = async () => {
-    setLoading(true);
-    setError('');
-    
     try {
-      const turfs = await turfService.getMyTurfs();
-      setMyTurfs(turfs);
-      
-      // If we have turfs, select the first one by default
-      if (turfs && turfs.length > 0 && !selectedTurfId) {
-        setSelectedTurfId(turfs[0].id);
-      }
+      setLoading(true);
+      setError('');
+      const data = await turfService.getMyTurfs();
+      setMyTurfs(normalize(data));
     } catch (err) {
-      console.error('Error loading turfs:', err);
-      setError('Failed to load your turfs. Please try again.');
+      setError(err?.response?.data || 'Failed to load your turfs');
+      setMyTurfs([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadTurfBookings = async () => {
-    if (!selectedTurfId) return;
-    
-    setLoadingBookings(true);
+  const [ownerStats, setOwnerStats] = useState({ totalBookings: 0, totalRevenue: 0 });
+  // Handle offline booking creation
+  const handleCreateOfflineBooking = async () => {
+    if (!offlineBookingData.turfId) {
+      alert('Please select a turf');
+      return;
+    }
+    if (!offlineBookingData.date) {
+      alert('Please select a date');
+      return;
+    }
+    if (!offlineBookingData.startTime || !offlineBookingData.endTime) {
+      alert('Please select start and end time');
+      return;
+    }
     
     try {
-      const response = await bookingService.getTurfBookings(
-        selectedTurfId, 
-        bookingPage, 
-        bookingSize
+      setLoadingOfflineBookings(true);
+      setError('');
+      await bookingService.createOfflineBooking(
+        offlineBookingData.turfId,
+        offlineBookingData.date,
+        offlineBookingData.startTime,
+        offlineBookingData.endTime,
+        offlineBookingData.amount || null
       );
       
-      setTurfBookings(response.content || []);
-      setBookingTotalPages(response.totalPages || 0);
-      setBookingTotalCount(response.totalElements || 0);
+      // Reset form and reload bookings
+      setOfflineBookingData({
+        turfId: offlineBookingData.turfId,
+        date: offlineBookingData.date,
+        startTime: '',
+        endTime: '',
+        amount: ''
+      });
+      
+      // Reload offline bookings
+      loadOfflineBookings(offlineBookingData.turfId);
+      alert('Offline booking created successfully');
     } catch (err) {
-      console.error('Error loading bookings:', err);
+      setError(err?.response?.data || 'Failed to create offline booking');
+    } finally {
+      setLoadingOfflineBookings(false);
+    }
+  };
+  
+  // Handle offline booking deletion
+  const handleDeleteOfflineBooking = async (bookingId) => {
+    if (!confirm('Are you sure you want to unblock this slot?')) {
+      return;
+    }
+    
+    try {
+      setLoadingOfflineBookings(true);
+      setError('');
+      await bookingService.deleteOfflineBooking(bookingId);
+      
+      // Reload offline bookings
+      loadOfflineBookings(offlineBookingData.turfId);
+      alert('Slot unblocked successfully');
+    } catch (err) {
+      setError(err?.response?.data || 'Failed to unblock slot');
+    } finally {
+      setLoadingOfflineBookings(false);
+    }
+  };
+  
+  // Load offline bookings for a turf
+  const loadOfflineBookings = async (turfId) => {
+    if (!turfId) return;
+    
+    try {
+      setLoadingOfflineBookings(true);
+      setError('');
+      const bookings = await bookingService.getOfflineBookings(turfId);
+      setOfflineBookings(normalize(bookings));
+    } catch (err) {
+      console.error('Failed to load offline bookings:', err);
+      setError('Failed to load offline bookings');
+      setOfflineBookings([]);
+    } finally {
+      setLoadingOfflineBookings(false);
+    }
+  };
+
+  const loadOwnerStats = async () => {
+    try {
+      const stats = await turfService.getMyTurfsStats();
+      setOwnerStats({
+        totalBookings: Number(stats?.totalBookings || 0),
+        totalRevenue: Number(stats?.totalRevenue || 0)
+      });
+    } catch (_) {}
+  };
+
+  const loadBookingsForSelected = async (turfId) => {
+    if (!turfId) return;
+    try {
+      setLoadingBookings(true);
+      setError('');
+      const data = await bookingService.getBookingsByTurfPaginated(turfId, bookingPage, bookingSize);
+      
+      if (data && typeof data === 'object') {
+        if (Array.isArray(data.content)) {
+          // Paginated response
+          setTurfBookings(normalize(data.content));
+          setBookingTotalPages(data.totalPages || 0);
+          setBookingTotalCount(data.totalElements || 0);
+        } else if (Array.isArray(data)) {
+          // Direct array response (fallback)
+          setTurfBookings(normalize(data));
+          setBookingTotalPages(1);
+          setBookingTotalCount(data.length || 0);
+        } else {
+          // Fallback
+          setTurfBookings([]);
+          setBookingTotalPages(0);
+          setBookingTotalCount(0);
+        }
+      } else {
+        setTurfBookings([]);
+        setBookingTotalPages(0);
+        setBookingTotalCount(0);
+      }
+    } catch (err) {
+      setError(err?.response?.data || 'Failed to load bookings');
+      setTurfBookings([]);
+      setBookingTotalPages(0);
+      setBookingTotalCount(0);
     } finally {
       setLoadingBookings(false);
     }
   };
 
-  const loadOfflineBookings = async () => {
-    if (!selectedTurfId) return;
-    
-    setLoadingOfflineBookings(true);
-    
-    try {
-      const bookings = await bookingService.getOfflineBookings(selectedTurfId);
-      setOfflineBookings(bookings || []);
-    } catch (err) {
-      console.error('Error loading offline bookings:', err);
-    } finally {
-      setLoadingOfflineBookings(false);
+  const loadUserProfile = () => {
+    const user = authService.getCurrentUser();
+    if (user) {
+      const profile = {
+        firstName: user.firstName || user.fullName?.split(' ')[0] || '',
+        lastName: user.lastName || user.fullName?.split(' ').slice(1).join(' ') || '',
+        email: user.email || '',
+        phone: user.phone || '+91 98765 43210'
+      };
+      setUserProfile(profile);
+    }
+  };
+
+  const handleProfileUpdate = (updatedProfile) => {
+    // Update the local user profile state
+    setUserProfile({
+      firstName: updatedProfile.firstName || updatedProfile.fullName?.split(' ')[0] || '',
+      lastName: updatedProfile.lastName || updatedProfile.fullName?.split(' ').slice(1).join(' ') || '',
+      email: updatedProfile.email || '',
+      phone: updatedProfile.phone || ''
+    });
+  };
+
+  useEffect(() => {
+    loadMyTurfs();
+    loadOwnerStats();
+    loadUserProfile();
+  }, []);
+  
+  // Load offline bookings when turf changes
+  useEffect(() => {
+    if (offlineBookingData.turfId) {
+      loadOfflineBookings(offlineBookingData.turfId);
+    }
+  }, [offlineBookingData.turfId]);
+
+  useEffect(() => {
+    if (selectedTurfId) {
+      loadBookingsForSelected(selectedTurfId);
+    }
+  }, [selectedTurfId, bookingPage, bookingSize]);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleSportToggle = (sport) => {
+    setFormData(prev => ({
+      ...prev,
+      sports: prev.sports.includes(sport)
+        ? prev.sports.filter(s => s !== sport)
+        : [...prev.sports, sport]
+    }));
+  };
+
+  const handleAmenityToggle = (amenity) => {
+    setFormData(prev => ({
+      ...prev,
+      amenities: prev.amenities.includes(amenity)
+        ? prev.amenities.filter(a => a !== amenity)
+        : [...prev.amenities, amenity]
+    }));
+  };
+
+  const handleImageChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      // Check if adding these files would exceed the 5 image limit
+      const totalImages = selectedImages.length + files.length;
+      const canAddCount = Math.min(files.length, 5 - selectedImages.length);
+      
+      if (canAddCount <= 0) {
+        setError('Maximum 5 images allowed');
+        return;
+      }
+      
+      // Add new files to existing selection (up to 5 total)
+      const newFiles = files.slice(0, canAddCount);
+      const updatedImages = [...selectedImages, ...newFiles];
+      setSelectedImages(updatedImages);
+      
+      // Create preview URLs for new files and add to existing previews
+      const newPreviews = newFiles.map(file => URL.createObjectURL(file));
+      setImagePreviews([...imagePreviews, ...newPreviews]);
+      
+      // Update form data
+      setFormData(prev => ({
+        ...prev,
+        images: updatedImages
+      }));
+      
+      // Clear any previous errors
+      setError('');
     }
   };
 
@@ -202,119 +333,91 @@ const TurfOwnerDashboard = () => {
   const handleOpenEditTurf = (turf) => {
     setIsEditing(true);
     setEditingTurfId(turf.id);
-    setExistingImagesString(turf.images || '');
-    
-    // Set form data from turf
+    // Prefill form fields from turf
+    const priceValue = turf.pricePerHour || turf.price || '';
+    const amenitiesArray = Array.isArray(turf.amenities)
+      ? turf.amenities
+      : (typeof turf.amenities === 'string'
+        ? turf.amenities.split(',').map((s) => s.trim()).filter(Boolean)
+        : []);
+
     setFormData({
       turfName: turf.name || '',
       location: turf.location || '',
       description: turf.description || '',
-      price: turf.pricePerHour || turf.price || '',
-      sports: turf.sports ? turf.sports.split(',').map(s => s.trim()) : [],
-      amenities: turf.amenities ? turf.amenities.split(',').map(a => a.trim()) : [],
-      images: []
+      price: priceValue,
+      sports: [],
+      amenities: amenitiesArray,
+      images: [] // keep empty until user selects new files
     });
-    
-    // Set image previews if available
-    if (turf.images) {
-      const imageUrls = turf.images.split(',').map(img => img.trim()).filter(img => img);
-      setImagePreviews(imageUrls);
-    } else {
-      setImagePreviews([]);
-    }
-    
+
+    // Prepare previews from existing images string, if any
+    const imagesStr = typeof turf.images === 'string' ? turf.images : '';
+    setExistingImagesString(imagesStr);
+    const previews = imagesStr
+      ? imagesStr.split(',').map((s) => s.trim()).filter(Boolean)
+      : [];
+    setSelectedImages([]);
+    setImagePreviews(previews);
+
     setShowAddTurfForm(true);
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleCheckboxChange = (type, value) => {
-    setFormData(prev => {
-      const currentValues = [...prev[type]];
-      
-      if (currentValues.includes(value)) {
-        return { ...prev, [type]: currentValues.filter(item => item !== value) };
-      } else {
-        return { ...prev, [type]: [...currentValues, value] };
-      }
-    });
-  };
-
-  const handleImageChange = (e) => {
-    const files = Array.from(e.target.files);
-    setSelectedImages(prev => [...prev, ...files]);
-    
-    // Create preview URLs
-    const newPreviews = files.map(file => URL.createObjectURL(file));
-    setImagePreviews(prev => [...prev, ...newPreviews]);
-  };
-
   const removeImage = (index) => {
-    setSelectedImages(prev => prev.filter((_, i) => i !== index));
+    const newImages = selectedImages.filter((_, i) => i !== index);
+    const newPreviews = imagePreviews.filter((_, i) => i !== index);
     
-    // Revoke the object URL to avoid memory leaks
-    URL.revokeObjectURL(imagePreviews[index]);
-    setImagePreviews(prev => prev.filter((_, i) => i !== index));
+    setSelectedImages(newImages);
+    setImagePreviews(newPreviews);
+    setFormData(prev => ({
+      ...prev,
+      images: newImages
+    }));
   };
 
-  const removeExistingImage = (url) => {
-    const updatedPreviews = imagePreviews.filter(preview => preview !== url);
-    setImagePreviews(updatedPreviews);
-    
-    // Update the existing images string
-    if (existingImagesString) {
-      const images = existingImagesString.split(',').map(img => img.trim());
-      const updatedImages = images.filter(img => img !== url);
-      setExistingImagesString(updatedImages.join(','));
-    }
-  };
-
-  const handleSubmit = async (e) => {
+  const handleSubmitRequest = async (e) => {
     e.preventDefault();
-    setLoading(true);
     setError('');
-    
+    setLoading(true);
+
     try {
-      // Validate form
-      if (!formData.turfName || !formData.location || !formData.price) {
-        throw new Error('Please fill in all required fields');
+      // Validate required fields
+      if (!formData.turfName || !formData.location || !formData.description || !formData.price) {
+        setError('Please fill in all required fields');
+        setLoading(false);
+        return;
       }
-      
-      // Create FormData for file upload
-      const formDataObj = new FormData();
-      
-      // Add text fields
-      formDataObj.append('name', formData.turfName);
-      formDataObj.append('location', formData.location);
-      formDataObj.append('description', formData.description);
-      formDataObj.append('pricePerHour', formData.price);
-      formDataObj.append('sports', formData.sports.join(','));
-      formDataObj.append('amenities', formData.amenities.join(','));
-      
-      // Add existing images if editing
-      if (isEditing && existingImagesString) {
-        formDataObj.append('existingImages', existingImagesString);
+
+      if (isNaN(Number(formData.price)) || Number(formData.price) <= 0) {
+        setError('Please enter a valid price');
+        setLoading(false);
+        return;
       }
-      
-      // Add new images
-      selectedImages.forEach(image => {
-        formDataObj.append('images', image);
-      });
-      
-      // Create payload for non-file data
-      const payloadBase = {
+
+      let payloadBase = {
         name: formData.turfName,
-        location: formData.location,
         description: formData.description,
-        pricePerHour: formData.price,
-        sports: formData.sports.join(','),
-        amenities: formData.amenities.join(','),
-        existingImages: existingImagesString
+        location: formData.location,
+        pricePerHour: Number(formData.price),
+        amenities: formData.amenities.join(',')
       };
-      
+
+      // If user selected new images, convert and send as imageArray; otherwise keep previous images when editing
+      if (formData.images && formData.images.length > 0) {
+        const imageStrings = await Promise.all(
+          formData.images.map(file => {
+            return new Promise((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result);
+              reader.readAsDataURL(file);
+            });
+          })
+        );
+        payloadBase = { ...payloadBase, imageArray: imageStrings };
+      } else if (isEditing && existingImagesString) {
+        payloadBase = { ...payloadBase, images: existingImagesString };
+      }
+
       console.log('Submitting turf with payload:', payloadBase, 'isEditing:', isEditing);
 
       let result;
@@ -470,42 +573,25 @@ const TurfOwnerDashboard = () => {
       </div>
 
       <div className="bg-white rounded-xl shadow-md p-4 md:p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Recent Turfs</h3>
-          <button 
-            onClick={() => setActiveTab('turfs')}
-            className="text-sm text-blue-600 hover:text-blue-800"
-          >
-            View All
-          </button>
-        </div>
-        
-        {loading ? (
-          <div className="text-center py-4">Loading…</div>
-        ) : safeTurfs.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {safeTurfs.slice(0, 2).map((turf) => (
-              <div key={turf.id} className="border border-gray-200 rounded-lg p-4">
-                <div className="flex items-start justify-between mb-2">
-                  <h5 className="font-medium text-gray-900">{turf.name}</h5>
-                  <span className={`px-2 py-0.5 rounded-full text-xs ${turf.isActive ? 'bg-green-100 text-green-800' : 'bg-orange-100 text-orange-800'}`}>
-                    {turf.isActive ? 'Active' : 'Pending'}
-                  </span>
+        <h3 className="text-lg font-semibold text-gray-900 mb-3 md:mb-4">Recent Bookings</h3>
+        {safeTurfs.length > 0 ? (
+          <div className="space-y-2 md:space-y-3">
+            {safeTurfs.slice(0, 3).map((turf) => (
+              <div key={turf.id} className="flex items-center justify-between p-2 md:p-3 bg-green-50 rounded-lg">
+                <div className="overflow-hidden">
+                  <h4 className="font-medium text-gray-900 text-sm md:text-base truncate">{turf.name}</h4>
+                  <p className="text-xs md:text-sm text-gray-600">Example booking</p>
                 </div>
-                <div className="text-sm text-gray-600 mb-2">
-                  <MapPin className="w-3 h-3 inline mr-1" />
-                  {turf.location}
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span>₹{turf.pricePerHour || turf.price}/hr</span>
-                  <span>{turf.totalBookings || 0} bookings</span>
+                <div className="text-right ml-2">
+                  <div className="text-base md:text-lg font-semibold text-green-600">₹800</div>
                 </div>
               </div>
             ))}
           </div>
         ) : (
-          <div className="text-center py-4 text-gray-500">
-            No turfs added yet. Add your first turf to get started!
+          <div className="text-center py-6 md:py-8 text-gray-500">
+            <Calendar className="w-12 h-12 md:w-16 md:h-16 text-gray-300 mx-auto mb-3 md:mb-4" />
+            <p>No turfs yet. Add your first turf to get started!</p>
           </div>
         )}
       </div>
@@ -514,8 +600,8 @@ const TurfOwnerDashboard = () => {
 
   const renderMyTurfs = () => (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-xl font-semibold text-gray-900">My Turfs</h2>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xl font-semibold text-gray-900">My Turfs</h3>
         <button
           onClick={() => setShowAddTurfForm(true)}
           className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
@@ -601,13 +687,12 @@ const TurfOwnerDashboard = () => {
       ) : (
         <div className="text-center py-12 bg-white rounded-xl">
           <MapPin className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Turfs Yet</h3>
-          <p className="text-gray-600 mb-6">You haven't added any turfs yet. Add your first turf to get started!</p>
+          <p className="text-gray-500 mb-4">No turfs added yet</p>
           <button
             onClick={() => setShowAddTurfForm(true)}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
           >
-            Add New Turf
+            Add Your First Turf
           </button>
         </div>
       )}
@@ -616,31 +701,29 @@ const TurfOwnerDashboard = () => {
 
   const renderBookingsTab = () => (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-900">Manage Bookings</h2>
-      
+      <h3 className="text-xl font-semibold text-gray-900">Manage Bookings</h3>
       <div className="bg-white rounded-xl shadow-md p-6">
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Select Turf</label>
-          <select
-            className="w-full p-2 border border-gray-300 rounded-md"
-            value={selectedTurfId}
-            onChange={(e) => setSelectedTurfId(e.target.value)}
-          >
-            <option value="">Select a turf</option>
-            {safeTurfs.filter(t => t.isActive).map(turf => (
-              <option key={turf.id} value={turf.id}>{turf.name}</option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Select Turf</label>
+            <select
+              value={selectedTurfId}
+              onChange={(e) => setSelectedTurfId(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+            >
+              <option value="">— Choose —</option>
+              {safeTurfs.map(t => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
         </div>
-      </div>
 
-      {selectedTurfId ? (
-        <>
+        <div className="mt-6">
           {loadingBookings ? (
-            <div className="text-center py-12 bg-white rounded-xl">Loading bookings...</div>
-          ) : (
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <div className="overflow-x-auto">
+            <div className="text-center py-8 bg-gray-50 rounded-lg">Loading…</div>
+          ) : selectedTurfId && turfBookings.length > 0 ? (
+            <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -681,222 +764,650 @@ const TurfOwnerDashboard = () => {
                           ${b.status === 'CONFIRMED' ? 'bg-green-100 text-green-800' : 
                             b.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' : 
                             b.status === 'CANCELLED' ? 'bg-red-100 text-red-800' : 
-                            'bg-gray-100 text-gray-800'}`}
-                        >
-                          {b.status || 'N/A'}
+                            b.status === 'OFFLINE' ? 'bg-gray-100 text-gray-800' : 
+                            'bg-blue-100 text-blue-800'}`}>
+                          {b.status || 'CONFIRMED'}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-blue-600 hover:text-blue-900 mr-3">
-                          View
-                        </button>
-                        {b.status === 'PENDING' && (
-                          <>
-                            <button className="text-green-600 hover:text-green-900 mr-3">
-                              Confirm
-                            </button>
-                            <button className="text-red-600 hover:text-red-900">
-                              Cancel
-                            </button>
-                          </>
-                        )}
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+              
+              {/* Pagination Controls */}
+              <div className="p-4 flex items-center justify-between border-t">
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => { if (bookingPage > 0) { setBookingPage(bookingPage - 1); } }}
+                    disabled={bookingPage === 0}
+                    className={`px-3 py-2 rounded-md text-sm ${bookingPage === 0 ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    onClick={() => { if (bookingPage + 1 < bookingTotalPages) { setBookingPage(bookingPage + 1); } }}
+                    disabled={bookingPage + 1 >= bookingTotalPages}
+                    className={`px-3 py-2 rounded-md text-sm ${bookingPage + 1 >= bookingTotalPages ? 'bg-gray-200 text-gray-500 cursor-not-allowed' : 'bg-gray-800 text-white hover:bg-gray-700'}`}
+                  >
+                    Next
+                  </button>
+                </div>
+                
+                <div className="flex items-center space-x-4">
+                  <span className="text-sm text-gray-600">
+                    Page {bookingPage + 1} of {Math.max(1, bookingTotalPages)}
+                  </span>
+                  
+                  {bookingTotalPages > 1 && (
+                    <div className="flex items-center space-x-2">
+                      <label className="text-sm text-gray-600">Go to:</label>
+                      <select
+                        value={bookingPage}
+                        onChange={(e) => setBookingPage(parseInt(e.target.value, 10))}
+                        className="border rounded-md px-2 py-1 text-sm"
+                      >
+                        {Array.from({ length: bookingTotalPages }, (_, i) => (
+                          <option key={i} value={i}>Page {i + 1}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center space-x-2">
+                    <label className="text-sm text-gray-600">Show:</label>
+                    <select
+                      value={bookingSize}
+                      onChange={(e) => {
+                        setBookingSize(parseInt(e.target.value, 10));
+                        setBookingPage(0); // Reset to first page when changing page size
+                      }}
+                      className="border rounded-md px-2 py-1 text-sm"
+                    >
+                      <option value="5">5 per page</option>
+                      <option value="10">10 per page</option>
+                      <option value="20">20 per page</option>
+                      <option value="50">50 per page</option>
+                    </select>
+                  </div>
+                </div>
               </div>
               
-              {turfBookings.length === 0 && (
-                <div className="text-center py-8">
-                  <p className="text-gray-500">No bookings found for this turf.</p>
+              <div className="p-4 flex items-center justify-end border-t">
+                <div className="flex items-center space-x-2">
+                  <label className="text-sm text-gray-600">Page Size:</label>
+                  <select
+                    value={bookingSize}
+                    onChange={(e) => {
+                      const size = parseInt(e.target.value, 10);
+                      setBookingSize(size);
+                      setBookingPage(0); // Reset to first page when changing page size
+                    }}
+                    className="border rounded-md px-2 py-1"
+                  >
+                    {[5, 10, 20, 50].map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
                 </div>
-              )}
-              
-              {bookingTotalPages > 1 && (
-                <div className="px-6 py-3 flex items-center justify-between border-t border-gray-200">
-                  <div className="text-sm text-gray-700">
-                    Showing <span className="font-medium">{turfBookings.length}</span> of{' '}
-                    <span className="font-medium">{bookingTotalCount}</span> bookings
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => setBookingPage(prev => Math.max(0, prev - 1))}
-                      disabled={bookingPage === 0}
-                      className={`px-3 py-1 border rounded ${
-                        bookingPage === 0 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      Previous
-                    </button>
-                    <button
-                      onClick={() => setBookingPage(prev => Math.min(bookingTotalPages - 1, prev + 1))}
-                      disabled={bookingPage >= bookingTotalPages - 1}
-                      className={`px-3 py-1 border rounded ${
-                        bookingPage >= bookingTotalPages - 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'bg-white text-gray-700 hover:bg-gray-50'
-                      }`}
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
+          ) : selectedTurfId ? (
+            <div className="text-center py-8 bg-gray-50 rounded-lg text-gray-600">No bookings for this turf</div>
+          ) : (
+            <div className="text-center py-8 bg-gray-50 rounded-lg text-gray-600">Select a turf to view bookings</div>
           )}
-        </>
-      ) : (
-        <div className="bg-white rounded-xl shadow-md p-6 text-center">
-          <p className="text-gray-600">Please select a turf to view bookings.</p>
         </div>
-      )}
+      </div>
     </div>
   );
 
-  const handleAddOfflineBooking = async (e) => {
-    e.preventDefault();
-    
-    if (!offlineBookingData.date || !offlineBookingData.startTime || !offlineBookingData.endTime || !offlineBookingData.amount) {
-      alert('Please fill all required fields');
-      return;
-    }
-    
-    try {
-      await bookingService.createOfflineBooking({
-        turfId: selectedTurfId,
-        bookingDate: offlineBookingData.date,
-        startTime: offlineBookingData.startTime,
-        endTime: offlineBookingData.endTime,
-        totalAmount: offlineBookingData.amount
-      });
-      
-      // Reset form and reload bookings
-      setOfflineBookingData({
-        turfId: selectedTurfId,
-        date: '',
-        startTime: '',
-        endTime: '',
-        amount: ''
-      });
-      
-      await loadOfflineBookings();
-      alert('Offline booking added successfully!');
-    } catch (err) {
-      console.error('Error adding offline booking:', err);
-      alert('Failed to add offline booking. Please try again.');
-    }
-  };
+  const renderAddTurfForm = () => (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-4 md:p-6">
+          <div className="flex items-center justify-between mb-4 md:mb-6">
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900">Add New Turf</h3>
+            <button
+              onClick={() => setShowAddTurfForm(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <XCircle className="w-5 h-5 md:w-6 md:h-6" />
+            </button>
+          </div>
 
-  const handleDeleteOfflineBooking = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to remove this blocked slot?')) {
-      return;
-    }
-    
-    try {
-      await bookingService.deleteOfflineBooking(bookingId);
-      await loadOfflineBookings();
-      alert('Booking slot unblocked successfully!');
-    } catch (err) {
-      console.error('Error deleting offline booking:', err);
-      alert('Failed to unblock slot. Please try again.');
-    }
-  };
+          {error && (
+            <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
+          )}
 
-  const renderOfflineBookingsTab = () => (
-    <>
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Manage Offline Bookings</h2>
-      
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="mb-4">
-          <label className="block text-sm font-medium text-gray-700 mb-1">Select Turf</label>
-          <select
-            className="w-full p-2 border border-gray-300 rounded-md"
-            value={selectedTurfId}
-            onChange={(e) => setSelectedTurfId(e.target.value)}
-          >
-            <option value="">Select a turf</option>
-            {safeTurfs.filter(t => t.isActive).map(turf => (
-              <option key={turf.id} value={turf.id}>{turf.name}</option>
-            ))}
-          </select>
+          <form onSubmit={handleSubmitRequest} className="space-y-4 md:space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1 md:mb-2">
+                Turf Name *
+              </label>
+              <input
+                type="text"
+                value={formData.turfName}
+                onChange={(e) => handleInputChange('turfName', e.target.value)}
+                className="w-full px-3 md:px-4 py-2 md:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter turf name"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Location *
+              </label>
+              <input
+                type="text"
+                value={formData.location}
+                onChange={(e) => handleInputChange('location', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter complete address"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Description *
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => handleInputChange('description', e.target.value)}
+                rows={4}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Describe your turf facilities and features"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Price per Hour (₹) *
+              </label>
+              <input
+                type="number"
+                value={formData.price}
+                onChange={(e) => handleInputChange('price', e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                placeholder="Enter hourly rate"
+                min="100"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Sports Available
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {sportsOptions.map((sport) => (
+                  <label key={sport} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.sports.includes(sport)}
+                      onChange={() => handleSportToggle(sport)}
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-gray-700">{sport}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Amenities
+              </label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {amenitiesOptions.map((amenity) => (
+                  <label key={amenity} className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={formData.amenities.includes(amenity)}
+                      onChange={() => handleAmenityToggle(amenity)}
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <span className="text-gray-700">{amenity}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                Turf Images (Max 5 images)
+              </label>
+              <div className="space-y-4">
+                <div className="flex items-center justify-center w-full">
+                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                      <svg className="w-8 h-8 mb-4 text-gray-500" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.5 0 5.5 5.5 0 0 0 0 6.5a5.56 5.56 0 0 0 2.975 4.5H0v3h13Z"/>
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 13h3l-3-3-3 3h3Z"/>
+                      </svg>
+                      <p className="mb-2 text-sm text-gray-500">
+                        <span className="font-semibold">Click to upload</span> turf images
+                      </p>
+                      <p className="text-xs text-gray-500">PNG, JPG or JPEG (MAX. 5 images)</p>
+                    </div>
+                    <input 
+                      type="file" 
+                      className="hidden" 
+                      multiple 
+                      accept="image/*"
+                      onChange={handleImageChange}
+                    />
+                  </label>
+                </div>
+
+                {imagePreviews.length > 0 && (
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <h4 className="text-sm font-medium text-gray-700">Selected Images ({imagePreviews.length}/5)</h4>
+                      {imagePreviews.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedImages([]);
+                            setImagePreviews([]);
+                            setFormData(prev => ({ ...prev, images: [] }));
+                          }}
+                          className="text-xs text-red-600 hover:text-red-800"
+                        >
+                          Clear all
+                        </button>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                      {imagePreviews.map((preview, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square overflow-hidden rounded-lg border border-gray-200">
+                            <img
+                              src={preview}
+                              alt={`Preview ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeImage(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center text-sm hover:bg-red-600 transition-colors shadow-sm"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {imagePreviews.length < 5 && (
+                        <label className="aspect-square flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                          <div className="flex flex-col items-center justify-center p-2 text-center">
+                            <svg className="w-6 h-6 mb-1 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path>
+                            </svg>
+                            <span className="text-xs text-gray-500">Add more</span>
+                          </div>
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            multiple 
+                            accept="image/*"
+                            onChange={handleImageChange}
+                          />
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex space-x-4 pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAddTurfForm(false)}
+                className="flex-1 px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading}
+                className="flex-1 px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-70"
+              >
+                {loading ? 'Submitting…' : 'Submit for Approval'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
-      
-      {selectedTurfId ? (
-        <>
-          <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Block Time Slot</h3>
-            <form onSubmit={handleAddOfflineBooking}>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                  <input
-                    type="date"
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    value={offlineBookingData.date}
-                    onChange={(e) => setOfflineBookingData(prev => ({ ...prev, date: e.target.value }))}
-                    required
-                  />
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {showPersonalDetailsModal && (
+          <PersonalDetailsModal
+            isOpen={showPersonalDetailsModal}
+            onClose={() => setShowPersonalDetailsModal(false)}
+            onProfileUpdate={handleProfileUpdate}
+          />
+        )}
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-gray-900">Turf Owner Dashboard</h1>
+          <p className="text-gray-600 mt-2">Manage your turfs and track performance</p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-md mb-6">
+          <div className="border-b border-gray-200">
+            <div className="relative">
+              {/* Mobile dropdown selector */}
+              <div className="md:hidden p-2">
+                <select 
+                  value={activeTab}
+                  onChange={(e) => setActiveTab(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-md bg-white text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option value="overview">Overview</option>
+                  <option value="turfs">My Turfs</option>
+                  <option value="bookings">Bookings</option>
+                  <option value="offlineBookings">Offline Bookings</option>
+                  <option value="analytics">Analytics</option>
+                </select>
+              </div>
+              
+              {/* Desktop tabs */}
+              <nav className="hidden md:flex -mb-px overflow-x-auto">
+                <button
+                  onClick={() => setActiveTab('overview')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'overview'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Overview
+                </button>
+                <button
+                  onClick={() => setActiveTab('turfs')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'turfs'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  My Turfs
+                </button>
+                <button
+                  onClick={() => setActiveTab('bookings')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'bookings'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Bookings
+                </button>
+                <button
+                  onClick={() => setActiveTab('offlineBookings')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'offlineBookings'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Offline Bookings
+                </button>
+                <button
+                  onClick={() => setActiveTab('analytics')}
+                  className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                    activeTab === 'analytics'
+                      ? 'border-green-500 text-green-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  }`}
+                >
+                  Analytics
+                </button>
+              </nav>
+            </div>
+          </div>
+
+          <div className="p-6">
+            {activeTab === 'overview' && renderOverview()}
+            {activeTab === 'turfs' && renderMyTurfs()}
+            {activeTab === 'bookings' && renderBookingsTab()}
+            {activeTab === 'offlineBookings' && renderOfflineBookingsTab()}
+            {activeTab === 'analytics' && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="bg-white rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Bookings</p>
+                        <p className="text-2xl font-semibold text-gray-900">{ownerStats.totalBookings}</p>
+                      </div>
+                      <Calendar className="w-8 h-8 text-blue-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                        <p className="text-2xl font-semibold text-gray-900">₹{ownerStats.totalRevenue.toLocaleString()}</p>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-purple-600" />
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-xl shadow-md p-6">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-gray-600">Active Turfs</p>
+                        <p className="text-2xl font-semibold text-gray-900">{safeTurfs.filter(t => t.isActive).length}</p>
+                      </div>
+                      <MapPin className="w-8 h-8 text-green-600" />
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Start Time</label>
-                  <input
-                    type="time"
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    value={offlineBookingData.startTime}
-                    onChange={(e) => setOfflineBookingData(prev => ({ ...prev, startTime: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">End Time</label>
-                  <input
-                    type="time"
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    value={offlineBookingData.endTime}
-                    onChange={(e) => setOfflineBookingData(prev => ({ ...prev, endTime: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
-                  <input
-                    type="number"
-                    className="w-full p-2 border border-gray-300 rounded-md"
-                    value={offlineBookingData.amount}
-                    onChange={(e) => setOfflineBookingData(prev => ({ ...prev, amount: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div className="flex items-end">
-                  <button
-                    type="submit"
-                    className="w-full p-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
-                    Block Slot
-                  </button>
+
+                <div className="bg-white rounded-xl shadow-md p-6">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">By Turf</h3>
+                  {safeTurfs.length === 0 ? (
+                    <div className="text-gray-600">No turfs yet.</div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {safeTurfs.map((turf) => (
+                        <div key={turf.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                          <div>
+                            <div className="font-medium text-gray-900">{turf.name}</div>
+                            <div className="text-sm text-gray-600">₹{(turf.pricePerHour || turf.price || 0)}/hr</div>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <div className="text-right">
+                              <div className="text-sm text-gray-600">Status</div>
+                              <div className="text-sm font-semibold">{turf.isActive ? 'Active' : 'Pending'}</div>
+                            </div>
+                            <button
+                              onClick={() => { setSelectedTurfId(String(turf.id)); setActiveTab('bookings'); }}
+                              className="px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200"
+                            >
+                              View bookings
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
-            </form>
+            )}
           </div>
-          
+        </div>
+      </div>
+
+      {/* Render Offline Bookings Tab */}
+    </div>
+  );
+  
+  const renderOfflineBookingsTab = () => {
+    return (
+      <div className="space-y-6">
+        {/* Form to Add Offline Booking */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Manage Offline Bookings
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* Turf Select */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Select Turf
+            </label>
+            <select
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+              value={offlineBookingData.turfId}
+              onChange={(e) =>
+                setOfflineBookingData((prev) => ({
+                  ...prev,
+                  turfId: e.target.value,
+                }))
+              }
+            >
+              <option value="">Select a turf</option>
+              {safeTurfs.map((turf) => (
+                <option key={turf.id} value={turf.id}>
+                  {turf.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Date
+            </label>
+            <input
+              type="date"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+              value={offlineBookingData.date}
+              onChange={(e) =>
+                setOfflineBookingData((prev) => ({
+                  ...prev,
+                  date: e.target.value,
+                }))
+              }
+              min={new Date().toISOString().split('T')[0]}
+            />
+          </div>
+
+          {/* Start Time */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Start Time
+            </label>
+            <input
+              type="time"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+              value={offlineBookingData.startTime}
+              onChange={(e) =>
+                setOfflineBookingData((prev) => ({
+                  ...prev,
+                  startTime: e.target.value,
+                }))
+              }
+            />
+          </div>
+
+          {/* End Time */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              End Time
+            </label>
+            <input
+              type="time"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+              value={offlineBookingData.endTime}
+              onChange={(e) =>
+                setOfflineBookingData((prev) => ({
+                  ...prev,
+                  endTime: e.target.value,
+                }))
+              }
+            />
+          </div>
+
+          {/* Amount */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Amount (Optional)
+            </label>
+            <input
+              type="number"
+              className="w-full p-2 border border-gray-300 rounded-md focus:ring-green-500 focus:border-green-500"
+              value={offlineBookingData.amount}
+              onChange={(e) =>
+                setOfflineBookingData((prev) => ({
+                  ...prev,
+                  amount: e.target.value,
+                }))
+              }
+              placeholder="Auto-calculated if empty"
+            />
+          </div>
+        </div>
+
+        {/* Submit Button */}
+        <button
+          className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+          onClick={handleCreateOfflineBooking}
+          disabled={loadingOfflineBookings}
+        >
+          {loadingOfflineBookings ? "Processing..." : "Block Slot"}
+        </button>
+      </div>
+
+     {/* Display Offline Bookings */}
+const renderOfflineBookingsTab = () => {
+  return (
+    <>
+      {offlineBookingData.turfId ? (
+        <>
           {loadingOfflineBookings ? (
-            <div className="text-center py-12 bg-white rounded-xl">Loading...</div>
+            <div className="text-center py-4">
+              <div className="inline-block h-8 w-8 animate-spin rounded-full border-4 border-solid border-green-500 border-r-transparent"></div>
+              <p className="mt-2 text-gray-600">Loading offline bookings...</p>
+            </div>
+          ) : offlineBookings.length === 0 ? (
+            <div className="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+              No offline bookings found for this turf.
+            </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-md overflow-hidden">
-              <h3 className="text-lg font-semibold text-gray-900 p-6 border-b">Blocked Time Slots</h3>
-              
+            <div className="bg-white rounded-lg shadow overflow-x-auto">
+              <h3 className="text-md font-medium text-gray-700 p-4 border-b">
+                Currently Blocked Slots
+              </h3>
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Date
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Time
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Status
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Amount
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Action
+                    </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {offlineBookings.map(booking => (
+                  {offlineBookings.map((booking) => (
                     <tr key={booking.id}>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                         {booking.bookingDate}
@@ -935,76 +1446,6 @@ const TurfOwnerDashboard = () => {
         </div>
       )}
     </>
-  );
-  
-  const renderOverviewTab = () => (
-    <div className="p-6">
-      {activeTab === 'overview' && renderOverview()}
-      {activeTab === 'turfs' && renderMyTurfs()}
-      {activeTab === 'bookings' && renderBookingsTab()}
-      {activeTab === 'offlineBookings' && renderOfflineBookingsTab()}
-      {activeTab === 'analytics' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Bookings</p>
-                  <p className="text-2xl font-semibold text-gray-900">{ownerStats.totalBookings}</p>
-                </div>
-                <Calendar className="w-8 h-8 text-blue-600" />
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Total Revenue</p>
-                  <p className="text-2xl font-semibold text-gray-900">₹{ownerStats.totalRevenue.toLocaleString()}</p>
-                </div>
-                <DollarSign className="w-8 h-8 text-purple-600" />
-              </div>
-            </div>
-            <div className="bg-white rounded-xl shadow-md p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-600">Active Turfs</p>
-                  <p className="text-2xl font-semibold text-gray-900">{safeTurfs.filter(t => t.isActive).length}</p>
-                </div>
-                <MapPin className="w-8 h-8 text-green-600" />
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-xl shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">By Turf</h3>
-            {safeTurfs.length === 0 ? (
-              <div className="text-gray-600">No turfs yet.</div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {safeTurfs.map((turf) => (
-                  <div key={turf.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                    <div>
-                      <div className="font-medium text-gray-900">{turf.name}</div>
-                      <div className="text-sm text-gray-600">₹{(turf.pricePerHour || turf.price || 0)}/hr</div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="text-right">
-                        <div className="text-sm text-gray-600">Bookings</div>
-                        <div className="font-medium">{turf.totalBookings || 0}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-sm text-gray-600">Revenue</div>
-                        <div className="font-medium text-green-600">₹{(turf.revenue || 0).toLocaleString()}</div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
   );
   
   // Main component return

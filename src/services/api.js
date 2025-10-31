@@ -1,14 +1,13 @@
 // src/services/api.js
 import axios from 'axios';
 
-// Use environment variable if available, fallback to local development URL
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// ✅ Use environment variable if available, fallback to production URL
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://book-by-truf-backend.onrender.com';
 const BASE_URL = `${API_BASE}/api`;
 
 // Log the API base URL for debugging
 console.log('API Base URL:', API_BASE);
 
-// Create axios instance
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
@@ -35,7 +34,7 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// ✅ Enhanced error handling for auth issues and site-settings/map
+// ✅ Enhanced error handling for auth issues
 api.interceptors.response.use(
   (response) => {
     // Check if response contains user data and store it
@@ -48,17 +47,6 @@ api.interceptors.response.use(
     return response;
   },
   (error) => {
-    // Handle site-settings/map error
-    if (error.config && error.config.url && error.config.url.includes('site-settings/map')) {
-      console.log('Using fallback data for site-settings/map');
-      return Promise.resolve({
-        data: {
-          mapApiKey: '',
-          center: { lat: 28.6139, lng: 77.2090 }, // Default coordinates
-          zoom: 12
-        }
-      });
-    }
     if (
       error.response &&
       (error.response.status === 401 || error.response.status === 403) &&

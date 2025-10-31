@@ -1346,7 +1346,7 @@ const renderOfflineBookingsTab = () => {
                 {offlineBookings.map(booking => (
                   <tr key={booking.id}>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {new Date(booking.date).toLocaleDateString()}
+                      {new Date(booking.bookingDate).toLocaleDateString()}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {booking.startTime} - {booking.endTime}
@@ -1357,7 +1357,7 @@ const renderOfflineBookingsTab = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {booking.amount ? `₹${booking.amount}` : '-'}
+                      {booking.totalAmount ? `₹${booking.totalAmount}` : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <button

@@ -59,19 +59,16 @@ export const authService = {
 
   logout: async () => {
     try {
-      const token = localStorage.getItem('token');
+      // Call the logout endpoint which will clear the JWT cookie
       await api.post(
         '/auth/logout',
         {},
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          withCredentials: true,
-        }
+        { withCredentials: true }
       );
     } catch (error) {
       console.error('Logout API error:', error);
     } finally {
-      localStorage.removeItem('token');
+      // Clear local storage data
       localStorage.removeItem('user');
       localStorage.removeItem('userType');
       
@@ -106,7 +103,9 @@ export const authService = {
   },
 
   isAuthenticated: () => {
-    return !!localStorage.getItem('token');
+    // Check if user data exists in localStorage (set during successful auth)
+    // With cookie-based auth, we can't directly check for the JWT
+    return !!localStorage.getItem('user');
   },
 
   updateProfile: async (profileData) => {

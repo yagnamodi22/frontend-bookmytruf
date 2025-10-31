@@ -14,9 +14,11 @@ const api = axios.create({
   withCredentials: true, // ensures cookies are sent for session-based auth if used
 });
 
-// ✅ Automatically attach JWT token for all private requests
+// ✅ Automatically attach JWT token for all private requests (fallback for non-cookie auth)
 api.interceptors.request.use(
   (config) => {
+    // With cookie-based auth, the JWT is automatically sent in the cookie
+    // This is just a fallback for any legacy code still using token-based auth
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
@@ -41,12 +43,11 @@ api.interceptors.response.use(
       console.warn('Unauthorized or expired session:', error.config.url);
 
       // Clear stored auth data
-      localStorage.removeItem('token');
       localStorage.removeItem('user');
       sessionStorage.setItem('authError', 'Session expired. Please log in again.');
 
-      // Removed automatic redirect to login page
-      // This prevents auto-login when opening the website
+      // Redirect to login page for unauthorized requests
+      window.location.href = '/login';
     }
 
     return Promise.reject(error);

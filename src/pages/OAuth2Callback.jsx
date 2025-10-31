@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
+import api from "../services/api";
 
 function OAuth2Callback() {
   const navigate = useNavigate();
@@ -8,50 +9,31 @@ function OAuth2Callback() {
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get("token");
+        // With our new cookie-based approach, the JWT is already set as a cookie
+        // We just need to verify the user is authenticated and fetch user info
+        
+        // ✅ Verify and fetch user info using the cookie that was set
+        const response = await api.get("/user/me", { 
+          withCredentials: true 
+        });
 
-        if (!token) {
-          console.error("❌ No token received from backend redirect.");
+        if (!response.data) {
+          console.error("❌ Failed to verify authentication");
           navigate("/login");
           return;
         }
 
-        // ✅ Store the token immediately
-        localStorage.setItem("token", token);
-        localStorage.setItem("userType", "user");
-        authService.setAuthHeader(token);
-
-        // ✅ Verify and fetch user info
-        const response = await fetch(
-          "https://book-by-truf-backend.onrender.com/api/user/me",
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (!response.ok) {
-          console.error("❌ Failed to verify token:", response.status);
-          localStorage.removeItem("token");
-          navigate("/login");
-          return;
-        }
-
-        const userData = await response.json();
+        const userData = response.data;
         console.log("✅ Logged-in user:", userData);
 
-        // ✅ Save user info
+        // ✅ Save user info to localStorage for app usage
         localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("userType", "user");
 
-        // ✅ Redirect to dashboard or home
+        // ✅ Redirect to dashboard
         navigate("/dashboard");
       } catch (err) {
         console.error("⚠️ OAuth callback error:", err);
-        localStorage.removeItem("token");
         navigate("/login");
       }
     };

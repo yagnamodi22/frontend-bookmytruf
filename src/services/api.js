@@ -59,14 +59,6 @@ api.interceptors.response.use(
         }
       });
     }
-    
-    // Handle turfs/public error
-    if (error.config && error.config.url && error.config.url.includes('turfs/public')) {
-      console.log('Using fallback data for turfs/public');
-      return Promise.resolve({
-        data: []  // Empty array of turfs
-      });
-    }
     if (
       error.response &&
       (error.response.status === 401 || error.response.status === 403) &&

@@ -2,8 +2,12 @@
 import express from 'express';
 import cors from 'cors';
 import axios from 'axios';
+import cookieParser from 'cookie-parser';
 
 const app = express();
+
+// Parse cookies
+app.use(cookieParser());
 
 // Enable CORS with proper configuration
 app.use(cors({
@@ -24,7 +28,7 @@ const BACKEND_URL = process.env.BACKEND_URL || 'https://book-by-truf-backend.onr
 // Proxy middleware function
 const proxyRequest = async (req, res) => {
   try {
-    const { method, url, headers, body } = req;
+    const { method, url, headers, body, cookies } = req;
     
     // Forward the request to the backend with credentials
     const response = await axios({
@@ -34,6 +38,8 @@ const proxyRequest = async (req, res) => {
         ...headers,
         host: new URL(BACKEND_URL).host,
         'Content-Type': 'application/json',
+        // Forward cookies to the backend
+        Cookie: headers.cookie || '',
       },
       data: body,
       withCredentials: true,
@@ -46,7 +52,11 @@ const proxyRequest = async (req, res) => {
       if (key.toLowerCase() === 'set-cookie') {
         const cookies = Array.isArray(value) ? value : [value];
         const secureTransformedCookies = cookies.map(cookie => 
-          cookie.replace(/SameSite=Lax/gi, 'SameSite=None; Secure')
+          cookie
+            .replace(/SameSite=Lax/gi, 'SameSite=None')
+            .replace(/SameSite=Strict/gi, 'SameSite=None')
+            // Ensure cookies are secure
+            .includes('Secure') ? cookie : `${cookie}; Secure`
         );
         res.setHeader('Set-Cookie', secureTransformedCookies);
       } else {
@@ -65,9 +75,15 @@ const proxyRequest = async (req, res) => {
 // Handle all API routes
 app.all('/api/*', proxyRequest);
 
+// Auth verification endpoint
+app.get('/api/auth/verify', (req, res) => {
+  // Forward to backend
+  proxyRequest(req, res);
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  res.status(200).json({ status: 'ok', message: 'API proxy is running' });
 });
 
 // Export the Express API

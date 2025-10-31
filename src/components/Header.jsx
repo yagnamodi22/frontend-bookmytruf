@@ -1,48 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut } from 'lucide-react';
 import { siteSettingsService } from '../services/siteSettingsService';
+import { AuthContext } from '../App';
 
-const Header = ({ 
-  isLoggedIn, 
-  user, 
-  setIsLoggedIn, 
-  isAdminLoggedIn, 
-  admin, 
-  setIsAdminLoggedIn,
-  isOwnerLoggedIn,
-  owner,
-  setIsOwnerLoggedIn
-}) => {
+const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { user, isAuthenticated, logout } = useContext(AuthContext);
 
-  const handleLogout = (userType = 'customer') => {
-    try {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-    } catch {}
-
-    if (userType === 'admin') {
-      setIsAdminLoggedIn(false);
-    } else if (userType === 'owner') {
-      setIsOwnerLoggedIn(false);
-    } else {
-      setIsLoggedIn(false);
-    }
+  const handleLogout = async () => {
+    await logout();
     setIsMenuOpen(false);
     navigate('/');
   };
 
-  const getCurrentUser = () => {
-    if (isAdminLoggedIn) return { type: 'admin', data: admin };
-    if (isOwnerLoggedIn) return { type: 'owner', data: owner };
-    if (isLoggedIn) return { type: 'customer', data: user };
-    return null;
-  };
-
-  const currentUser = getCurrentUser();
   const [settings, setSettings] = useState({});
 
   useEffect(() => {

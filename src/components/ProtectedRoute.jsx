@@ -1,51 +1,61 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { authService } from '../services/authService';
-import api from '../services/api';
 
-const ProtectedRoute = ({ children, roles }) => {
-  const navigate = useNavigate();
+const ProtectedRoute = ({ children, roles = [] }) => {
   const [isVerifying, setIsVerifying] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasRequiredRole, setHasRequiredRole] = useState(false);
 
   useEffect(() => {
-    // Set no-cache headers for protected routes
-    const setNoCacheHeaders = () => {
-      document.querySelector('meta[http-equiv="Cache-Control"]')?.remove();
-      document.querySelector('meta[http-equiv="Pragma"]')?.remove();
-      document.querySelector('meta[http-equiv="Expires"]')?.remove();
-      
-      const metaCacheControl = document.createElement('meta');
-      metaCacheControl.setAttribute('http-equiv', 'Cache-Control');
-      metaCacheControl.setAttribute('content', 'no-store, no-cache, must-revalidate, private');
-      
-      const metaPragma = document.createElement('meta');
-      metaPragma.setAttribute('http-equiv', 'Pragma');
-      metaPragma.setAttribute('content', 'no-cache');
-      
-      const metaExpires = document.createElement('meta');
-      metaExpires.setAttribute('http-equiv', 'Expires');
-      metaExpires.setAttribute('content', '0');
-      
-      document.head.appendChild(metaCacheControl);
-      document.head.appendChild(metaPragma);
-      document.head.appendChild(metaExpires);
-    };
-
     const verifyAuth = async () => {
       try {
-        // First check local storage
-        if (!authService.isAuthenticated()) {
+        // Verify with backend using cookies
+        const user = await authService.verifySession();
+        
+        if (user) {
+          setIsAuthenticated(true);
+          
+          // Check if user has required role (if roles are specified)
+          if (roles.length === 0 || roles.includes(user.role?.toLowerCase())) {
+            setHasRequiredRole(true);
+          } else {
+            setHasRequiredRole(false);
+          }
+        } else {
           setIsAuthenticated(false);
-          setIsVerifying(false);
-          return;
+          setHasRequiredRole(false);
         }
+      } catch (error) {
+        console.error('Auth verification error:', error);
+        setIsAuthenticated(false);
+        setHasRequiredRole(false);
+      } finally {
+        setIsVerifying(false);
+      }
+    };
 
-        // Then verify with backend using cookies
-        try {
-          // Use the new verifyAuth method that checks with backend
-          const isValid = await authService.verifyAuth();
+    verifyAuth();
+  }, [roles]);
+
+  if (isVerifying) {
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+    </div>;
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!hasRequiredRole) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return children;
+};
+
+export default ProtectedRoute;
           
           if (isValid) {
             setIsAuthenticated(true);

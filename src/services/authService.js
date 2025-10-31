@@ -2,10 +2,29 @@
 import api from './api';
 
 export const authService = {
+  verifySession: async () => {
+    try {
+      const response = await api.get('/auth/verify', { withCredentials: true });
+      if (response.data && response.data.user) {
+        const storedUser = { 
+          ...response.data.user, 
+          role: (response.data.user.role || '').toLowerCase() 
+        };
+        localStorage.setItem('user', JSON.stringify(storedUser));
+        return storedUser;
+      }
+      return null;
+    } catch (error) {
+      console.error('Session verification failed:', error);
+      localStorage.removeItem('user');
+      return null;
+    }
+  },
+
   register: async (userData) => {
     const response = await api.post('/auth/register', userData, { withCredentials: true });
-    if (response.data) {
-      const storedUser = { ...response.data, role: (response.data.role || '').toLowerCase() };
+    if (response.data && response.data.success) {
+      const storedUser = { ...response.data.user, role: (response.data.user.role || '').toLowerCase() };
       localStorage.setItem('user', JSON.stringify(storedUser));
     }
     return response.data;
@@ -14,8 +33,8 @@ export const authService = {
   login: async (credentials) => {
     const response = await api.post('/auth/login', credentials, { withCredentials: true });
 
-    if (response.data) {
-      const storedUser = { ...response.data, role: (response.data.role || '').toLowerCase() };
+    if (response.data && response.data.success) {
+      const storedUser = { ...response.data.user, role: (response.data.user.role || '').toLowerCase() };
       localStorage.setItem('user', JSON.stringify(storedUser));
 
       // Fetch profile data

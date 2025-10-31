@@ -3,29 +3,24 @@ import api from './api';
 
 export const authService = {
   register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
-    if (response.data.token) {
+    const response = await api.post('/auth/register', userData, { withCredentials: true });
+    if (response.data) {
       const storedUser = { ...response.data, role: (response.data.role || '').toLowerCase() };
-      localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(storedUser));
     }
     return response.data;
   },
 
   login: async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
+    const response = await api.post('/auth/login', credentials, { withCredentials: true });
 
-    if (response.data.token) {
+    if (response.data) {
       const storedUser = { ...response.data, role: (response.data.role || '').toLowerCase() };
-      localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(storedUser));
 
-      // ✅ Fetch profile with Authorization header
+      // Fetch profile data
       try {
-        const token = localStorage.getItem('token');
-        const profileResponse = await api.get('/auth/profile', {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const profileResponse = await api.get('/auth/profile', { withCredentials: true });
 
         if (profileResponse.data) {
           const updatedUser = {
@@ -48,10 +43,9 @@ export const authService = {
   },
 
   adminLogin: async (credentials) => {
-    const response = await api.post('/auth/admin/login', credentials);
-    if (response.data.token) {
+    const response = await api.post('/auth/admin/login', credentials, { withCredentials: true });
+    if (response.data) {
       const storedUser = { ...response.data, role: (response.data.role || '').toLowerCase() };
-      localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(storedUser));
     }
     return response.data;

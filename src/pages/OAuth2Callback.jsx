@@ -9,31 +9,31 @@ function OAuth2Callback() {
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
-        // With our new cookie-based approach, the JWT is already set as a cookie
-        // We just need to verify the user is authenticated and fetch user info
+        // With our cookie-based approach, the JWT is already set as a cookie
+        // We just need to fetch user info using the cookie
         
-        // ✅ Verify and fetch user info using the cookie that was set
-        const response = await api.get("/user/me", { 
+        // Fetch user info using the JWT cookie that was set
+        const response = await api.get("/api/user/me", { 
           withCredentials: true 
         });
 
         if (!response.data) {
-          console.error("❌ Failed to verify authentication");
+          console.error("Failed to verify authentication");
           navigate("/login");
           return;
         }
 
         const userData = response.data;
-        console.log("✅ Logged-in user:", userData);
+        console.log("Logged-in user:", userData);
 
-        // ✅ Save user info to localStorage for app usage
+        // Save user info to localStorage for app usage
         localStorage.setItem("user", JSON.stringify(userData));
         localStorage.setItem("userType", "user");
 
-        // ✅ Redirect to dashboard
+        // Redirect to dashboard
         navigate("/dashboard");
       } catch (err) {
-        console.error("⚠️ OAuth callback error:", err);
+        console.error("OAuth callback error:", err);
         navigate("/login");
       }
     };

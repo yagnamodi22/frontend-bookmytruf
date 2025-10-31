@@ -114,16 +114,11 @@ const Login = ({ setIsLoggedIn, setUser }) => {
     }
   };
 
-  // Updated Google login handler to work with our CORS configuration
+  // ✅ FIXED: Google login handler now points to /api/oauth2/authorization/google
   const handleGoogleLogin = () => {
-    // Use the API_BASE from environment variables or fallback to production URL
-    const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://book-by-truf-backend.onrender.com';
-    
-    // Set a redirect cookie to help with cross-domain authentication
-    document.cookie = "auth_redirect=dashboard; path=/; max-age=300; SameSite=None; Secure";
-    
-    // Redirect to Google OAuth endpoint
-    window.location.href = `${API_BASE}/api/oauth2/authorization/google`;
+    window.location.href = `${
+      process.env.REACT_APP_API_URL || 'https://book-by-truf-backend.onrender.com/api'
+    }/oauth2/authorization/google`;
   };
 
   if (!setIsLoggedIn || !setUser) {

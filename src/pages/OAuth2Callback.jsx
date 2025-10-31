@@ -1,3 +1,4 @@
+// src/pages/OAuth2Callback.jsx
 import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../services/authService";
@@ -10,6 +11,8 @@ function OAuth2Callback() {
       const urlParams = new URLSearchParams(window.location.search);
       const token = urlParams.get("token");
 
+      console.log("🔍 Token received from backend redirect:", token);
+
       if (!token) {
         console.error("❌ No token received from backend");
         navigate("/login");
@@ -17,19 +20,52 @@ function OAuth2Callback() {
       }
 
       try {
-        // ✅ Save token and mark as 'user'
+        // ✅ Save token locally
         localStorage.setItem("token", token);
         localStorage.setItem("userType", "user");
         authService.setAuthHeader(token);
 
-        // ✅ Fetch user info from backend
+        // ✅ Fetch user info
         const response = await fetch(
           "https://book-by-truf-backend.onrender.com/api/user/me",
           {
             method: "GET",
-            headers: { Authorization: `Bearer ${token}` },
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           }
         );
+
+        console.log("🌐 Fetching user info:", response.status);
+
+        if (response.status === 404) {
+          // 🚨 User not found in DB — create new user using token
+          console.warn("⚠️ User not found, trying to register new Google user...");
+          const registerResponse = await fetch(
+            "https://book-by-truf-backend.onrender.com/api/auth/google",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+          if (!registerResponse.ok) {
+            console.error("❌ Google user registration failed:", registerResponse.status);
+            localStorage.removeItem("token");
+            navigate("/login");
+            return;
+          }
+
+          const newUser = await registerResponse.json();
+          console.log("✅ New Google user created:", newUser);
+          localStorage.setItem("user", JSON.stringify(newUser));
+          window.location.href = "/dashboard";
+          return;
+        }
 
         if (!response.ok) {
           console.error("❌ Failed to fetch user info:", response.status);

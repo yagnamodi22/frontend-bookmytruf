@@ -42,15 +42,12 @@ const ProtectedRoute = ({ children, roles }) => {
           return;
         }
 
-        // Then verify with backend
-        const token = localStorage.getItem('token');
-        if (token) {
-          try {
-            // Verify token with backend
-            await api.post('/auth/validate', {}, {
-              headers: { Authorization: `Bearer ${token}` }
-            });
-            
+        // Then verify with backend using cookies
+        try {
+          // Use the new verifyAuth method that checks with backend
+          const isValid = await authService.verifyAuth();
+          
+          if (isValid) {
             setIsAuthenticated(true);
             
             // Check roles if specified
@@ -74,13 +71,13 @@ const ProtectedRoute = ({ children, roles }) => {
             } else {
               setHasRequiredRole(true);
             }
-          } catch (error) {
-            console.error('Token validation failed:', error);
-            // Clear invalid auth data
+          } else {
+            // Auth verification failed
             authService.logout();
             setIsAuthenticated(false);
           }
-        } else {
+        } catch (error) {
+          console.error('Auth verification error:', error);
           setIsAuthenticated(false);
         }
       } catch (error) {

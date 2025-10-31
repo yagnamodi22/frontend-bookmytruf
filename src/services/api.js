@@ -17,24 +17,35 @@ const api = axios.create({
   withCredentials: true, // ensures cookies are sent for cross-domain requests
 });
 
-// ✅ Automatically attach JWT token for all private requests (fallback for non-cookie auth)
+// ✅ Configure request interceptor for cross-domain authentication
 api.interceptors.request.use(
   (config) => {
-    // For cross-domain requests, rely on cookies only
-    // Remove any token-based auth to prevent conflicts
+    // Ensure credentials are always sent with requests
+    config.withCredentials = true;
+    
+    // For JWT fallback (in case cookies fail)
     const user = JSON.parse(localStorage.getItem('user') || 'null');
-    if (user) {
-      // Don't set Authorization header - rely on cookies instead
-      // This prevents conflicts between cookie and header auth
+    if (user && user.token) {
+      config.headers['Authorization'] = `Bearer ${user.token}`;
     }
+    
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-// ✅ Centralized error handling for 401/403
+// ✅ Enhanced error handling for auth issues
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Check if response contains user data and store it
+    if (response.data && response.data.user && response.data.token) {
+      localStorage.setItem('user', JSON.stringify({
+        ...response.data.user,
+        token: response.data.token
+      }));
+    }
+    return response;
+  },
   (error) => {
     if (
       error.response &&
@@ -44,14 +55,16 @@ api.interceptors.response.use(
       !error.config.url.includes('/auth/login') &&
       !error.config.url.includes('/auth/register')
     ) {
-      console.warn('Unauthorized or expired session:', error.config.url);
+      console.warn('Authentication error:', error.response.status);
 
       // Clear stored auth data
       localStorage.removeItem('user');
       sessionStorage.setItem('authError', 'Session expired. Please log in again.');
 
-      // Redirect to login page for unauthorized requests
-      window.location.href = '/login';
+      // Only redirect if not already on login page
+      if (!window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
     }
 
     return Promise.reject(error);

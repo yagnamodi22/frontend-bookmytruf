@@ -6,39 +6,64 @@ import api from "../services/api";
 function OAuth2Callback() {
   const navigate = useNavigate();
   const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
         console.log("OAuth callback initiated");
         
-        // Fetch user info using the JWT cookie that was set
-        const response = await api.get("user/me", { 
+        // First try to get profile with existing cookie
+        try {
+          const profileResponse = await api.get("/auth/profile", { 
+            withCredentials: true 
+          });
+          
+          if (profileResponse && profileResponse.data) {
+            console.log("Authentication successful via cookie, user data:", profileResponse.data);
+            
+            // Store user data with proper role formatting
+            const userData = {
+              ...profileResponse.data,
+              role: (profileResponse.data.role || '').toLowerCase()
+            };
+            
+            localStorage.setItem("user", JSON.stringify(userData));
+            localStorage.setItem("userType", "user");
+            
+            // Redirect to dashboard
+            setIsLoading(false);
+            navigate("/dashboard");
+            return;
+          }
+        } catch (profileError) {
+          console.warn("Could not fetch profile with cookie, trying fallback:", profileError);
+        }
+        
+        // Fallback: Try to get user info from another endpoint
+        const response = await api.get("/user/me", { 
           withCredentials: true 
         });
 
         if (!response || !response.data) {
           console.error("Failed to verify authentication - no data returned");
-          setError("Authentication failed. Please try again.");
-          setTimeout(() => navigate("/login"), 2000);
-          return;
+          throw new Error("Authentication failed. Please try again.");
         }
 
         const userData = response.data;
-        console.log("Authentication successful, user data:", userData);
+        console.log("Authentication successful via fallback, user data:", userData);
 
         // Save user info to localStorage for app usage
         localStorage.setItem("user", JSON.stringify(userData));
         localStorage.setItem("userType", "user");
         
-        // Remove any token from localStorage to ensure we're using cookies only
-        localStorage.removeItem("token");
-
         // Redirect to dashboard
+        setIsLoading(false);
         navigate("/dashboard");
       } catch (err) {
         console.error("OAuth callback error:", err);
         setError("Authentication error: " + (err.message || "Unknown error"));
+        setIsLoading(false);
         setTimeout(() => navigate("/login"), 2000);
       }
     };
@@ -57,9 +82,12 @@ function OAuth2Callback() {
 
   return (
     <div className="flex justify-center items-center min-h-screen">
-      <p className="text-lg font-medium text-gray-600">
-        Signing you in securely...
-      </p>
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500 mx-auto mb-4"></div>
+        <p className="text-lg font-medium text-gray-600">
+          Signing you in securely...
+        </p>
+      </div>
     </div>
   );
 }

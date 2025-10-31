@@ -80,12 +80,43 @@ export const authService = {
   },
 
   getCurrentUser: () => {
-    return JSON.parse(localStorage.getItem('user'));
+    try {
+      const userData = localStorage.getItem('user');
+      return userData ? JSON.parse(userData) : null;
+    } catch (e) {
+      console.error('Error parsing user data:', e);
+      return null;
+    }
   },
 
   getCurrentUserRole: () => {
-    const user = JSON.parse(localStorage.getItem('user'));
-    return user?.role?.toLowerCase();
+    try {
+      const user = JSON.parse(localStorage.getItem('user'));
+      return user?.role?.toLowerCase();
+    } catch (e) {
+      console.error('Error getting user role:', e);
+      return null;
+    }
+  },
+  
+  // Add method to verify authentication status with backend
+  verifyAuth: async () => {
+    try {
+      const response = await api.get('/auth/profile', { withCredentials: true });
+      if (response.data) {
+        // Update stored user data with latest from server
+        const userData = {
+          ...response.data,
+          role: (response.data.role || '').toLowerCase()
+        };
+        localStorage.setItem('user', JSON.stringify(userData));
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error('Auth verification failed:', error);
+      return false;
+    }
   },
 
   setAuthHeader: (token) => {
@@ -97,9 +128,14 @@ export const authService = {
   },
 
   isAuthenticated: () => {
-    // Check if user data exists in localStorage (set during successful auth)
-    const user = JSON.parse(localStorage.getItem('user'));
-    return !!user; // Return true if user exists, false otherwise
+    try {
+      // Check if user data exists in localStorage (set during successful auth)
+      const user = JSON.parse(localStorage.getItem('user'));
+      return !!user; // Return true if user exists, false otherwise
+    } catch (e) {
+      console.error('Error checking authentication status:', e);
+      return false;
+    }
   },
 
   updateProfile: async (profileData) => {

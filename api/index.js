@@ -7,10 +7,12 @@ const app = express();
 
 // Enable CORS with proper configuration
 app.use(cors({
-  origin: 'https://frontend-bookmytruf.vercel.app',
+  origin: ['https://frontend-bookmytruf.vercel.app', 'http://localhost:5173', 'http://localhost:3000'],
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept'],
-  credentials: true
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'Origin', 'X-Requested-With', 'Cookie'],
+  exposedHeaders: ['Authorization', 'Set-Cookie'],
+  credentials: true,
+  maxAge: 86400
 }));
 
 // Parse JSON bodies
@@ -24,36 +26,39 @@ const proxyRequest = async (req, res) => {
   try {
     const { method, url, headers, body } = req;
     
-    // Special handling for admin login
-    if (url.includes('/auth/login') && body && (body.email || '').includes('admin')) {
-      console.log('Admin login detected, ensuring proper request format');
-    }
-    
-    // Forward the request to the backend
+    // Forward the request to the backend with credentials
     const response = await axios({
       method,
-      url: `${BACKEND_URL}${url.replace(/^\/api/, '')}`,
+      url: `${BACKEND_URL}${url.replace(/^\/api/, '/api')}`,
       headers: {
         ...headers,
         host: new URL(BACKEND_URL).host,
         'Content-Type': 'application/json',
       },
       data: body,
+      withCredentials: true,
       validateStatus: () => true,
+    });
+    
+    // Copy all headers from the backend response
+    Object.entries(response.headers).forEach(([key, value]) => {
+      // Handle cookies specially to ensure they work cross-domain
+      if (key.toLowerCase() === 'set-cookie') {
+        const cookies = Array.isArray(value) ? value : [value];
+        const secureTransformedCookies = cookies.map(cookie => 
+          cookie.replace(/SameSite=Lax/gi, 'SameSite=None; Secure')
+        );
+        res.setHeader('Set-Cookie', secureTransformedCookies);
+      } else {
+        res.setHeader(key, value);
+      }
     });
     
     // Return the response from the backend
     res.status(response.status).json(response.data);
   } catch (error) {
     console.error('Proxy error:', error);
-    // Provide more helpful error message for 405 errors
-    if (error.response && error.response.status === 405) {
-      return res.status(400).json({ 
-        error: 'Login method not supported. Please try again later.',
-        details: 'The server does not support this request method for the login endpoint.'
-      });
-    }
-    res.status(500).json({ error: 'Internal Server Error' });
+    res.status(500).json({ error: 'Internal Server Error', details: error.message });
   }
 };
 

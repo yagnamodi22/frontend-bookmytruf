@@ -16,8 +16,7 @@ const Login = ({ setIsLoggedIn, setUser }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const navigate = useNavigate();
-  
-  // Check for auth error message on component mount
+
   useEffect(() => {
     const authError = sessionStorage.getItem('authError');
     if (authError) {
@@ -46,12 +45,10 @@ const Login = ({ setIsLoggedIn, setUser }) => {
       if (isLogin) {
         const credentials = { email: formData.email, password: formData.password };
         const data = await authService.login(credentials);
-        
+
         if (data && data.token) {
-          // Enforce that only customer role can log in via this screen
           const userRole = authService.getCurrentUserRole();
           if (userRole !== 'user') {
-            // Clear session and show error
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             localStorage.removeItem('userType');
@@ -60,14 +57,12 @@ const Login = ({ setIsLoggedIn, setUser }) => {
             return;
           }
 
-          // Store authentication data in localStorage for persistence
           localStorage.setItem('token', data.token);
           localStorage.setItem('user', JSON.stringify(data));
           localStorage.setItem('userType', 'user');
-          
-          // Set authorization header for future API requests
+
           authService.setAuthHeader(data.token);
-          
+
           setUser(data);
           setIsLoggedIn(true);
           navigate('/dashboard');
@@ -80,7 +75,7 @@ const Login = ({ setIsLoggedIn, setUser }) => {
           setLoading(false);
           return;
         }
-        
+
         const { firstName, lastName } = splitName(formData.name);
         const payload = {
           firstName,
@@ -90,53 +85,41 @@ const Login = ({ setIsLoggedIn, setUser }) => {
           phone: formData.phone || '',
           role: 'USER'
         };
-        
-        // Client-side password policy for registration
+
         const pw = payload.password || '';
         const pwOk = /^(?=.*[A-Z])(?=.*[a-z])(?=.*\d)(?=.*[!@#$%^&*]).{8,}$/.test(pw);
         if (!pwOk) {
           throw new Error('Password must be at least 8 characters long and include uppercase, lowercase, number, and special character.');
         }
         const data = await authService.register(payload);
-        
+
         if (data && data.token) {
           setUser(data);
           setIsLoggedIn(true);
-          
-          // Get the latest user role from localStorage (updated by authService)
           const userRole = authService.getCurrentUserRole();
-          
-          console.log('User role after registration:', userRole);
-          
-          // Redirect based on role
-          if (userRole === 'admin') {
-            navigate('/admin/dashboard');
-          } else if (userRole === 'owner') {
-            navigate('/turf-owner/dashboard');
-          } else {
-            navigate('/dashboard');
-          }
+          if (userRole === 'admin') navigate('/admin/dashboard');
+          else if (userRole === 'owner') navigate('/turf-owner/dashboard');
+          else navigate('/dashboard');
         } else {
           setError('Registration failed: Invalid response from server');
         }
       }
     } catch (err) {
       console.error('Auth error:', err);
-      if (err?.response?.data) {
-        setError(err.response.data);
-      } else if (err?.message) {
-        setError(err.message);
-      } else if (err?.toString) {
-        setError(err.toString());
-      } else {
-        setError('Authentication failed. Please check your connection and try again.');
-      }
+      if (err?.response?.data) setError(err.response.data);
+      else if (err?.message) setError(err.message);
+      else setError('Authentication failed. Please check your connection and try again.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Prevent rendering errors
+  // NEW: Google login handler
+  const handleGoogleLogin = () => {
+    // Start Spring Security OAuth2 flow
+    window.location.href = `${process.env.REACT_APP_API_URL || 'https://book-by-truf-backend.onrender.com'}/oauth2/authorization/google`;
+  };
+
   if (!setIsLoggedIn || !setUser) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -163,10 +146,7 @@ const Login = ({ setIsLoggedIn, setUser }) => {
               {isLogin ? 'Welcome Back!' : 'Create Account'}
             </h1>
             <p className="text-gray-600">
-              {isLogin 
-                ? 'Sign in to book your favorite turfs in Visnagar' 
-                : 'Join BookMyTurf and start booking amazing sports facilities'
-              }
+              {isLogin ? 'Sign in to book your favorite turfs in Visnagar' : 'Join BookMyTurf and start booking amazing sports facilities'}
             </p>
           </div>
 
@@ -193,7 +173,6 @@ const Login = ({ setIsLoggedIn, setUser }) => {
                       required={!isLogin}
                     />
                   </div>
-                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Phone Number
@@ -310,9 +289,19 @@ const Login = ({ setIsLoggedIn, setUser }) => {
               </div>
 
               <div className="mt-4 grid grid-cols-2 gap-3">
-                <button className="flex justify-center items-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
-                  <span className="text-sm font-medium text-gray-700">Google</span>
+                <button
+                  type="button"
+                  onClick={handleGoogleLogin}
+                  className="flex justify-center items-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  <img
+                    src="https://www.svgrepo.com/show/355037/google.svg"
+                    alt="Google"
+                    className="w-5 h-5 mr-2"
+                  />
+                  <span className="text-sm font-medium text-gray-700">Sign in with Google</span>
                 </button>
+
                 <button className="flex justify-center items-center px-4 py-3 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors">
                   <span className="text-sm font-medium text-gray-700">Facebook</span>
                 </button>

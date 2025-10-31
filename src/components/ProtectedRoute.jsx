@@ -1,47 +1,104 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { authService } from '../services/authService';
+import api from '../services/api';
 
-const ProtectedRoute = ({ children, roles = [] }) => {
+const ProtectedRoute = ({ children, roles }) => {
+  const navigate = useNavigate();
   const [isVerifying, setIsVerifying] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasRequiredRole, setHasRequiredRole] = useState(false);
 
   useEffect(() => {
+    // Set no-cache headers for protected routes
+    const setNoCacheHeaders = () => {
+      document.querySelector('meta[http-equiv="Cache-Control"]')?.remove();
+      document.querySelector('meta[http-equiv="Pragma"]')?.remove();
+      document.querySelector('meta[http-equiv="Expires"]')?.remove();
+      
+      const metaCacheControl = document.createElement('meta');
+      metaCacheControl.setAttribute('http-equiv', 'Cache-Control');
+      metaCacheControl.setAttribute('content', 'no-store, no-cache, must-revalidate, private');
+      
+      const metaPragma = document.createElement('meta');
+      metaPragma.setAttribute('http-equiv', 'Pragma');
+      metaPragma.setAttribute('content', 'no-cache');
+      
+      const metaExpires = document.createElement('meta');
+      metaExpires.setAttribute('http-equiv', 'Expires');
+      metaExpires.setAttribute('content', '0');
+      
+      document.head.appendChild(metaCacheControl);
+      document.head.appendChild(metaPragma);
+      document.head.appendChild(metaExpires);
+    };
+
     const verifyAuth = async () => {
       try {
-        // Verify with backend using cookies
-        const user = await authService.verifySession();
-        
-        if (user) {
-          setIsAuthenticated(true);
-          
-          // Check if user has required role (if roles are specified)
-          if (roles.length === 0 || roles.includes(user.role?.toLowerCase())) {
-            setHasRequiredRole(true);
-          } else {
-            setHasRequiredRole(false);
-          }
-        } else {
+        // First check local storage
+        if (!authService.isAuthenticated()) {
           setIsAuthenticated(false);
-          setHasRequiredRole(false);
+          setIsVerifying(false);
+          return;
+        }
+
+        // Then verify with backend using cookies
+        try {
+          // Use the new verifyAuth method that checks with backend
+          const isValid = await authService.verifyAuth();
+          
+          if (isValid) {
+            setIsAuthenticated(true);
+            
+            // Check roles if specified
+            if (roles && roles.length > 0) {
+              const user = authService.getCurrentUser();
+              const userRole = (user?.role || user?.roles || '').toString().toLowerCase();
+              const userRoles = Array.isArray(userRole) ? userRole : userRole ? [userRole] : [];
+              const hasRole = userRoles.some(r => 
+                roles.some(role => role.toLowerCase() === r.toLowerCase())
+              );
+              
+              if (!hasRole) {
+                // If authenticated but wrong portal, route them to their dashboard
+                if (userRole === 'admin') navigate('/admin/dashboard');
+                else if (userRole === 'owner') navigate('/turf-owner/dashboard');
+                else navigate('/');
+                return;
+              }
+              
+              setHasRequiredRole(true);
+            } else {
+              setHasRequiredRole(true);
+            }
+          } else {
+            // Auth verification failed
+            authService.logout();
+            setIsAuthenticated(false);
+          }
+        } catch (error) {
+          console.error('Auth verification error:', error);
+          setIsAuthenticated(false);
         }
       } catch (error) {
         console.error('Auth verification error:', error);
         setIsAuthenticated(false);
-        setHasRequiredRole(false);
       } finally {
         setIsVerifying(false);
       }
     };
 
+    // Set no-cache headers
+    setNoCacheHeaders();
+    
+    // Verify authentication
     verifyAuth();
     
     // Add event listener for storage changes (for multi-tab logout)
     const handleStorageChange = (e) => {
       if (e.key === 'token' && !e.newValue) {
         // Token was removed in another tab
-        setIsAuthenticated(false);
+        navigate('/login');
       }
     };
     
@@ -50,23 +107,21 @@ const ProtectedRoute = ({ children, roles = [] }) => {
     return () => {
       window.removeEventListener('storage', handleStorageChange);
     };
-  }, [roles]);
+  }, [navigate, roles]);
 
   if (isVerifying) {
-    return <div className="flex items-center justify-center min-h-screen">
+    return <div className="flex justify-center items-center h-screen">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
     </div>;
   }
 
+  // If not authenticated, redirect to login page
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" />;
   }
-
-  if (!hasRequiredRole) {
-    return <Navigate to="/unauthorized" replace />;
-  }
-
-  return children;
+  
+  // If authenticated but doesn't have required role, return null
+  return hasRequiredRole ? children : null;
 };
 
 export default ProtectedRoute;

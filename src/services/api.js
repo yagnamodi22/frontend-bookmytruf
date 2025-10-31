@@ -3,7 +3,7 @@ import axios from 'axios';
 
 // ✅ Use environment variable if available, fallback to production URL
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://book-by-truf-backend.onrender.com';
-const BASE_URL = `/api`; // Use relative URL to work with the API proxy
+const BASE_URL = `${API_BASE}/api`;
 
 // Log the API base URL for debugging
 console.log('API Base URL:', API_BASE);

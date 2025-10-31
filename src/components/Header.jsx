@@ -1,21 +1,48 @@
-import React, { useEffect, useState, useContext } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, User, LogOut } from 'lucide-react';
 import { siteSettingsService } from '../services/siteSettingsService';
-import { AuthContext } from '../App';
 
-const Header = () => {
+const Header = ({ 
+  isLoggedIn, 
+  user, 
+  setIsLoggedIn, 
+  isAdminLoggedIn, 
+  admin, 
+  setIsAdminLoggedIn,
+  isOwnerLoggedIn,
+  owner,
+  setIsOwnerLoggedIn
+}) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, isAuthenticated, logout } = useContext(AuthContext);
 
-  const handleLogout = async () => {
-    await logout();
+  const handleLogout = (userType = 'customer') => {
+    try {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+    } catch {}
+
+    if (userType === 'admin') {
+      setIsAdminLoggedIn(false);
+    } else if (userType === 'owner') {
+      setIsOwnerLoggedIn(false);
+    } else {
+      setIsLoggedIn(false);
+    }
     setIsMenuOpen(false);
     navigate('/');
   };
 
+  const getCurrentUser = () => {
+    if (isAdminLoggedIn) return { type: 'admin', data: admin };
+    if (isOwnerLoggedIn) return { type: 'owner', data: owner };
+    if (isLoggedIn) return { type: 'customer', data: user };
+    return null;
+  };
+
+  const currentUser = getCurrentUser();
   const [settings, setSettings] = useState({});
 
   useEffect(() => {
@@ -84,23 +111,23 @@ const Header = () => {
 
           {/* Desktop Auth */}
           <div className="hidden md:flex items-center space-x-4">
-            {user ? (
+            {currentUser ? (
               <div className="flex items-center space-x-4">
-                {user.type === 'admin' && (
+                {currentUser.type === 'admin' && (
                   <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
                     Admin
                   </span>
                 )}
-                {user.type === 'owner' && (
+                {currentUser.type === 'owner' && (
                   <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
                     Turf Owner
                   </span>
                 )}
                 <Link
                   to={
-                    user.type === 'admin' 
+                    currentUser.type === 'admin' 
                       ? '/admin/dashboard' 
-                      : user.type === 'owner'
+                      : currentUser.type === 'owner'
                       ? '/turf-owner/dashboard'
                       : '/dashboard'
                   }
@@ -110,7 +137,7 @@ const Header = () => {
                   <span>Dashboard</span>
                 </Link>
                 <button
-                  onClick={() => handleLogout(user.type)}
+                  onClick={() => handleLogout(currentUser.type)}
                   className="flex items-center space-x-2 px-4 py-2 text-gray-700 hover:text-red-600 transition-colors duration-200"
                 >
                   <LogOut className="w-5 h-5" />
@@ -186,13 +213,13 @@ const Header = () => {
               >
                 Contact
               </Link>
-              {user ? (
+              {currentUser ? (
                 <>
                   <Link
                     to={
-                      user.type === 'admin' 
+                      currentUser.type === 'admin' 
                         ? '/admin/dashboard' 
-                        : user.type === 'owner'
+                        : currentUser.type === 'owner'
                         ? '/turf-owner/dashboard'
                         : '/dashboard'
                     }
@@ -206,7 +233,7 @@ const Header = () => {
                     </div>
                   </Link>
                   <button
-                    onClick={() => handleLogout(user.type)}
+                    onClick={() => handleLogout(currentUser.type)}
                     className="block w-full text-left px-4 py-3 text-gray-700 hover:text-red-600 hover:bg-gray-50 rounded-md text-lg"
                     aria-label="Logout"
                   >

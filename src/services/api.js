@@ -5,23 +5,27 @@ import axios from 'axios';
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'https://book-by-truf-backend.onrender.com';
 const BASE_URL = `${API_BASE}/api`;
 
+// Log the API base URL for debugging
+console.log('API Base URL:', API_BASE);
+
 const api = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true, // ensures cookies are sent for session-based auth if used
+  withCredentials: true, // ensures cookies are sent for cross-domain requests
 });
 
 // ✅ Automatically attach JWT token for all private requests (fallback for non-cookie auth)
 api.interceptors.request.use(
   (config) => {
-    // With cookie-based auth, the JWT is automatically sent in the cookie
-    // This is just a fallback for any legacy code still using token-based auth
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // For cross-domain requests, rely on cookies only
+    // Remove any token-based auth to prevent conflicts
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    if (user) {
+      // Don't set Authorization header - rely on cookies instead
+      // This prevents conflicts between cookie and header auth
     }
     return config;
   },

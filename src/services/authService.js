@@ -98,8 +98,9 @@ export const authService = {
 
   isAuthenticated: () => {
     // Check if user data exists in localStorage (set during successful auth)
-    // With cookie-based auth, we can't directly check for the JWT
-    return !!localStorage.getItem('user');
+    const user = JSON.parse(localStorage.getItem('user'));
+    return !!user; // Return true if user exists, false otherwise
+  },
   },
 
   updateProfile: async (profileData) => {

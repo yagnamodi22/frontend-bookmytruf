@@ -13,7 +13,7 @@ function OAuth2Callback() {
         // We just need to fetch user info using the cookie
         
         // Fetch user info using the JWT cookie that was set
-        const response = await api.get("/user/me", { 
+        const response = await api.get("user/me", { 
           withCredentials: true 
         });
 

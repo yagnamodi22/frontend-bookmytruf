@@ -49,7 +49,9 @@ const TurfDetails = () => {
     if (authService.isAuthenticated()) {
       navigate(`/booking/${id}`);
     } else {
-      // Removed automatic redirect to login
+      // Direct redirect to login page without showing popup
+      navigate('/login');
+      return;
     }
   };
 

@@ -115,8 +115,17 @@ const ProtectedRoute = ({ children, roles }) => {
     </div>;
   }
 
-  // If not authenticated, redirect to login page
+  // If not authenticated, redirect to appropriate login page based on required role
   if (!isAuthenticated) {
+    // Check if roles include specific user types and redirect accordingly
+    if (roles && roles.length > 0) {
+      if (roles.includes('admin')) {
+        return <Navigate to="/admin-login" />;
+      } else if (roles.includes('owner')) {
+        return <Navigate to="/owner-login" />;
+      }
+    }
+    // Default to regular user login
     return <Navigate to="/login" />;
   }
   

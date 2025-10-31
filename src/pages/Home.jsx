@@ -64,10 +64,9 @@ const Home = () => {
     if (authService.isAuthenticated()) {
       navigate(`/booking/${turfId}`);
     } else {
-      // Instead of automatically redirecting to login, show a prompt or modal
-      if (window.confirm('You need to be logged in to book a turf. Would you like to log in now?')) {
-        // Removed automatic redirect to login
-      }
+      // Direct redirect to login page without showing popup
+      navigate('/login');
+      return;
     }
   };
 

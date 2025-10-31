@@ -1223,19 +1223,18 @@ const TurfOwnerDashboard = () => {
       />
     </div>
   );
-};
 
-const renderOfflineBookingsTab = () => {
-  // Load offline bookings when turf is selected
-  useEffect(() => {
-    if (offlineBookingData.turfId) {
-      loadOfflineBookings(offlineBookingData.turfId);
-    }
-  }, [offlineBookingData.turfId]);
+  const renderOfflineBookingsTab = () => {
+    // Load offline bookings when turf is selected
+    useEffect(() => {
+      if (offlineBookingData.turfId) {
+        loadOfflineBookings(offlineBookingData.turfId);
+      }
+    }, [offlineBookingData.turfId]);
 
-  return (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Offline Bookings</h2>
+    return (
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">Offline Bookings</h2>
       
       {/* Form to add offline booking */}
       <div className="mb-8 bg-gray-50 p-6 rounded-lg">
@@ -1376,6 +1375,7 @@ const renderOfflineBookingsTab = () => {
       </div>
     </div>
   );
+  };
 };
 
 export default TurfOwnerDashboard;

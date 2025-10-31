@@ -8,6 +8,9 @@ import ScrollToTop from './components/ScrollToTop';
 import api from './services/api'; // Ensure you've configured api.js with axios and withCredentials:true
 import { authService } from './services/authService';
 
+// ✅ Import OAuth2Callback
+import OAuth2Callback from './pages/OAuth2Callback';
+
 // Lazy load page components
 const Home = lazy(() => import('./pages/Home'));
 const Turfs = lazy(() => import('./pages/Turfs'));
@@ -30,21 +33,16 @@ function App() {
   const [isOwnerLoggedIn, setIsOwnerLoggedIn] = useState(false);
   const [owner, setOwner] = useState(null);
 
-  // Check for existing authentication on mount to maintain session persistence
+  // ✅ Check for existing authentication on mount to maintain session persistence
   useEffect(() => {
-    // Check for existing token and restore session
     const token = localStorage.getItem('token');
     const userType = localStorage.getItem('userType');
     const userData = localStorage.getItem('user');
     
     if (token && userType && userData) {
-      // Set authorization header
       authService.setAuthHeader(token);
-      
       try {
         const user = JSON.parse(userData);
-        
-        // Restore session based on user type
         if (userType === 'user') {
           setIsLoggedIn(true);
           setUser(user);
@@ -89,7 +87,11 @@ function App() {
           setIsOwnerLoggedIn={setIsOwnerLoggedIn}
         />
         <ErrorBoundary>
-          <Suspense fallback={<div className="flex justify-center items-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div></div>}>
+          <Suspense fallback={
+            <div className="flex justify-center items-center min-h-screen">
+              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+            </div>
+          }>
             <Routes>
               <Route path="/oauth2/callback" element={<OAuth2Callback />} />
               <Route path="/" element={<Home />} />

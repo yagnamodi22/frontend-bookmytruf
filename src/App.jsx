@@ -98,12 +98,12 @@ function App() {
 
                 {/* Protected Routes */}
                 <Route path="/booking/:id" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute roles={['user']}>
                     <Booking />
                   </ProtectedRoute>
                 } />
                 <Route path="/dashboard" element={
-                  <ProtectedRoute>
+                  <ProtectedRoute roles={['user']}>
                     <Dashboard />
                   </ProtectedRoute>
                 } />
@@ -128,82 +128,6 @@ function App() {
         </div>
       </Router>
     </AuthContext.Provider>
-  );
-}
-
-              {/* Normal user routes */}
-              <Route path="/" element={<Home />} />
-              <Route path="/turfs" element={<Turfs />} />
-              <Route path="/about" element={<About />} />
-              <Route path="/contact" element={<Contact />} />
-              <Route path="/turf/:id" element={<TurfDetails />} />
-              <Route
-                path="/booking/:id"
-                element={
-                  <ProtectedRoute roles={['user']}>
-                    <Booking />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/login"
-                element={
-                  <Login setIsLoggedIn={setIsLoggedIn} setUser={setUser} />
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <ProtectedRoute roles={['user']}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Admin routes */}
-              <Route
-                path="/admin/login"
-                element={
-                  <AdminLogin
-                    setIsAdminLoggedIn={setIsAdminLoggedIn}
-                    setAdmin={setAdmin}
-                  />
-                }
-              />
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <ProtectedRoute roles={['admin']}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Turf Owner routes */}
-              <Route
-                path="/turf-owner/login"
-                element={
-                  <TurfOwnerLogin
-                    setIsOwnerLoggedIn={setIsOwnerLoggedIn}
-                    setOwner={setOwner}
-                  />
-                }
-              />
-              <Route
-                path="/turf-owner/dashboard"
-                element={
-                  <ProtectedRoute roles={['owner']}>
-                    <TurfOwnerDashboard />
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </Suspense>
-        </ErrorBoundary>
-
-        <Footer />
-      </div>
-    </Router>
   );
 }
 

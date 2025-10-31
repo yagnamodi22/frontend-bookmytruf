@@ -1,48 +1,52 @@
-// src/pages/OAuth2Callback.jsx
-import React, { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import React, { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { authService } from "../services/authService";
 
-const OAuth2Callback = () => {
+function OAuth2Callback() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const handleOAuthCallback = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const code = params.get('code');
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get("token");
 
-      if (code) {
-        try {
-          // Backend endpoint that handles Google callback
-          const response = await axios.get(
-            `${import.meta.env.VITE_API_BASE_URL}/auth/google/callback?code=${code}`,
-            { withCredentials: true }
-          );
+    if (token) {
+      // Save token locally
+      localStorage.setItem("token", token);
+      localStorage.setItem("userType", "user"); // Mark as normal user
+      authService.setAuthHeader(token);
 
-          // Save token and user
-          localStorage.setItem('token', response.data.token);
-          localStorage.setItem('user', JSON.stringify(response.data.user));
-          localStorage.setItem('userType', 'user');
-
-          // Redirect to home or dashboard
-          navigate('/dashboard');
-        } catch (error) {
-          console.error('OAuth2 callback failed:', error);
-          navigate('/login');
-        }
-      } else {
-        navigate('/login');
-      }
-    };
-
-    handleOAuthCallback();
+      // Fetch user details from backend
+      fetch("https://book-by-truf-backend.onrender.com/api/user/me", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data && data.email) {
+            localStorage.setItem("user", JSON.stringify(data));
+            navigate("/dashboard", { replace: true }); // Redirect to dashboard
+          } else {
+            window.location.href = "/login";
+          }
+        })
+        .catch((err) => {
+          console.error("Error fetching user info:", err);
+          window.location.href = "/login";
+        });
+    } else {
+      navigate("/login");
+    }
   }, [navigate]);
 
   return (
-    <div className="flex items-center justify-center h-screen">
-      <p className="text-lg text-gray-600">Signing you in with Google...</p>
+    <div className="flex justify-center items-center min-h-screen">
+      <div className="text-lg font-medium text-gray-600">
+        Signing you in securely...
+      </div>
     </div>
   );
-};
+}
 
 export default OAuth2Callback;

@@ -5,13 +5,13 @@ import Footer from './components/Footer';
 import ProtectedRoute from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import ScrollToTop from './components/ScrollToTop';
-import api from './services/api'; // Ensure you've configured api.js with axios and withCredentials:true
+import api from './services/api';
 import { authService } from './services/authService';
 
-// ✅ Import OAuth2Callback
+// ✅ OAuth callback page
 import OAuth2Callback from './pages/OAuth2Callback';
 
-// Lazy load page components
+// Lazy load all pages
 const Home = lazy(() => import('./pages/Home'));
 const Turfs = lazy(() => import('./pages/Turfs'));
 const TurfDetails = lazy(() => import('./pages/TurfDetails'));
@@ -33,25 +33,25 @@ function App() {
   const [isOwnerLoggedIn, setIsOwnerLoggedIn] = useState(false);
   const [owner, setOwner] = useState(null);
 
-  // ✅ Check for existing authentication on mount to maintain session persistence
+  // ✅ Restore login session if token exists
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userType = localStorage.getItem('userType');
     const userData = localStorage.getItem('user');
-    
+
     if (token && userType && userData) {
       authService.setAuthHeader(token);
       try {
-        const user = JSON.parse(userData);
+        const parsedUser = JSON.parse(userData);
         if (userType === 'user') {
           setIsLoggedIn(true);
-          setUser(user);
+          setUser(parsedUser);
         } else if (userType === 'admin') {
           setIsAdminLoggedIn(true);
-          setAdmin(user);
+          setAdmin(parsedUser);
         } else if (userType === 'owner') {
           setIsOwnerLoggedIn(true);
-          setOwner(user);
+          setOwner(parsedUser);
         }
       } catch (error) {
         console.error('Error restoring session:', error);
@@ -86,29 +86,89 @@ function App() {
           owner={owner}
           setIsOwnerLoggedIn={setIsOwnerLoggedIn}
         />
+
         <ErrorBoundary>
-          <Suspense fallback={
-            <div className="flex justify-center items-center min-h-screen">
-              <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
-            </div>
-          }>
+          <Suspense
+            fallback={
+              <div className="flex justify-center items-center min-h-screen">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
+              </div>
+            }
+          >
             <Routes>
+              {/* ✅ Add Google OAuth callback route here */}
               <Route path="/oauth2/callback" element={<OAuth2Callback />} />
+
+              {/* Normal user routes */}
               <Route path="/" element={<Home />} />
               <Route path="/turfs" element={<Turfs />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/turf/:id" element={<TurfDetails />} />
-              <Route path="/booking/:id" element={<ProtectedRoute roles={["user"]}><Booking /></ProtectedRoute>} />
-              <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} setUser={setUser} />} />
-              <Route path="/dashboard" element={<ProtectedRoute roles={["user"]}><Dashboard /></ProtectedRoute>} />
-              <Route path="/admin/login" element={<AdminLogin setIsAdminLoggedIn={setIsAdminLoggedIn} setAdmin={setAdmin} />} />
-              <Route path="/admin/dashboard" element={<ProtectedRoute roles={["admin"]}><AdminDashboard /></ProtectedRoute>} />
-              <Route path="/turf-owner/login" element={<TurfOwnerLogin setIsOwnerLoggedIn={setIsOwnerLoggedIn} setOwner={setOwner} />} />
-              <Route path="/turf-owner/dashboard" element={<ProtectedRoute roles={["owner"]}><TurfOwnerDashboard /></ProtectedRoute>} />
+              <Route
+                path="/booking/:id"
+                element={
+                  <ProtectedRoute roles={['user']}>
+                    <Booking />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <Login setIsLoggedIn={setIsLoggedIn} setUser={setUser} />
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute roles={['user']}>
+                    <Dashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Admin routes */}
+              <Route
+                path="/admin/login"
+                element={
+                  <AdminLogin
+                    setIsAdminLoggedIn={setIsAdminLoggedIn}
+                    setAdmin={setAdmin}
+                  />
+                }
+              />
+              <Route
+                path="/admin/dashboard"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Turf Owner routes */}
+              <Route
+                path="/turf-owner/login"
+                element={
+                  <TurfOwnerLogin
+                    setIsOwnerLoggedIn={setIsOwnerLoggedIn}
+                    setOwner={setOwner}
+                  />
+                }
+              />
+              <Route
+                path="/turf-owner/dashboard"
+                element={
+                  <ProtectedRoute roles={['owner']}>
+                    <TurfOwnerDashboard />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </Suspense>
         </ErrorBoundary>
+
         <Footer />
       </div>
     </Router>

@@ -114,10 +114,11 @@ const Login = ({ setIsLoggedIn, setUser }) => {
     }
   };
 
-  // NEW: Google login handler
+  // ✅ FIXED: Google login handler now points to /api/oauth2/authorization/google
   const handleGoogleLogin = () => {
-    // Start Spring Security OAuth2 flow
-    window.location.href = `${process.env.REACT_APP_API_URL || 'https://book-by-truf-backend.onrender.com'}/oauth2/authorization/google`;
+    window.location.href = `${
+      process.env.REACT_APP_API_URL || 'https://book-by-truf-backend.onrender.com/api'
+    }/oauth2/authorization/google`;
   };
 
   if (!setIsLoggedIn || !setUser) {
@@ -146,7 +147,9 @@ const Login = ({ setIsLoggedIn, setUser }) => {
               {isLogin ? 'Welcome Back!' : 'Create Account'}
             </h1>
             <p className="text-gray-600">
-              {isLogin ? 'Sign in to book your favorite turfs in Visnagar' : 'Join BookMyTurf and start booking amazing sports facilities'}
+              {isLogin
+                ? 'Sign in to book your favorite turfs in Visnagar'
+                : 'Join BookMyTurf and start booking amazing sports facilities'}
             </p>
           </div>
 

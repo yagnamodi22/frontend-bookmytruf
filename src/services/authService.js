@@ -101,7 +101,6 @@ export const authService = {
     const user = JSON.parse(localStorage.getItem('user'));
     return !!user; // Return true if user exists, false otherwise
   },
-  },
 
   updateProfile: async (profileData) => {
     try {

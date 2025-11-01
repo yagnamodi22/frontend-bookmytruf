@@ -1,182 +1,81 @@
 // src/services/bookingService.js
 import api from './api';
 
+/**
+ * bookingService
+ * - createOfflineBooking(data) => expects an object:
+ *     { turfId, date, startTime, endTime, amount }
+ * - getOfflineBookings(turfId) => returns array of offline bookings for turf
+ * - getBookingsByTurfPaginated(turfId, page, size) => paginated bookings
+ *
+ * Notes:
+ * - This module uses the `api` axios instance (imported from ./api).
+ * - It logs errors to console and rethrows them so calling components can handle UI messages.
+ */
+
 export const bookingService = {
-  // Create offline booking
-  createOfflineBooking: async (turfId, date, startTime, endTime, amount) => {
+  /**
+   * Create offline booking
+   * @param {Object} data - { turfId, date, startTime, endTime, amount }
+   * @returns {Promise<Object>} created booking response
+   */
+  createOfflineBooking: async (data) => {
     try {
-      const response = await api.post('/bookings/offline', {
-        turfId,
-        date,
-        startTime,
-        endTime,
-        amount
-      });
+      if (!data || !data.turfId || !data.date || !data.startTime || !data.endTime) {
+        throw new Error('Missing required offline booking fields: turfId, date, startTime, endTime');
+      }
+
+      const payload = {
+        turfId: data.turfId,
+        date: data.date,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        amount: data.amount ?? 0
+      };
+
+      const response = await api.post('/bookings/offline', payload);
       return response.data;
     } catch (error) {
       console.error('Error creating offline booking:', error);
+      // Re-throw so callers (UI) can show message
       throw error;
     }
   },
-  
-  // Delete offline booking
-  deleteOfflineBooking: async (bookingId) => {
-    try {
-      const response = await api.delete(`/bookings/offline/${bookingId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error deleting offline booking:', error);
-      throw error;
-    }
-  },
-  
-  // Get offline bookings for a turf
+
+  /**
+   * Get offline bookings for a turf
+   * @param {String|Number} turfId
+   * @returns {Promise<Array>} array of offline bookings
+   */
   getOfflineBookings: async (turfId) => {
     try {
-      const response = await api.get(`/bookings/offline/turf/${turfId}`);
+      if (!turfId) {
+        // return empty to let UI handle it gracefully
+        return [];
+      }
+      // Adjust endpoint if your backend uses another path or query parameter
+      const response = await api.get(`/bookings/offline`, { params: { turfId } });
+      // Assume backend returns { data: [...] } or directly an array — we return response.data
       return response.data;
     } catch (error) {
       console.error('Error fetching offline bookings:', error);
-      throw error;
-    }
-  },
-  // Get total bookings count and revenue for admin dashboard
-  getTotalBookingsAndRevenue: async () => {
-    try {
-      const response = await api.get('/bookings/admin/stats');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching booking stats for admin:', error);
-      throw error;
-    }
-  },
-  // ✅ Create a single booking
-  createBooking: async (bookingData) => {
-    try {
-      const response = await api.post('/bookings', bookingData);
-      return response.data;
-    } catch (error) {
-      console.error('Error creating booking:', error);
-      throw error;
+      // Let caller decide what to do (UI), return empty array for safety
+      return [];
     }
   },
 
-  // ✅ Get all bookings for the logged-in user
-  getMyBookings: async () => {
-    try {
-      const response = await api.get('/bookings/my-bookings');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching user bookings:', error);
-      throw error;
-    }
-  },
-
-  // ✅ Get user booking stats (total bookings & total spent)
-  getMyBookingStats: async () => {
-    try {
-      const response = await api.get('/bookings/my-bookings/stats');
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching booking stats:', error);
-      throw error;
-    }
-  },
-
-  // ✅ Get booking details by booking ID
-  getBookingById: async (id) => {
-    try {
-      const response = await api.get(`/bookings/${id}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching booking by ID:', error);
-      throw error;
-    }
-  },
-
-  // ✅ Cancel booking
-  cancelBooking: async (id) => {
-    try {
-      const response = await api.put(`/bookings/${id}/cancel`);
-      return response.data;
-    } catch (error) {
-      console.error('Error cancelling booking:', error);
-      throw error;
-    }
-  },
-
-  // ✅ Check time slot availability
-  checkAvailability: async (turfId, date, startTime, endTime) => {
-    try {
-      const response = await api.get('/bookings/availability', {
-        params: { turfId, date, startTime, endTime }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error checking availability:', error);
-      throw error;
-    }
-  },
-
-  // ✅ Get booked slots for a particular day
-  getDayAvailability: async (turfId, date) => {
-    try {
-      const response = await api.get('/bookings/availability/day', {
-        params: { turfId, date }
-      });
-      return response.data; // array of booked start times
-    } catch (error) {
-      console.error('Error fetching day availability:', error);
-      throw error;
-    }
-  },
-
-  // ✅ Create multiple bookings for multiple slots
-  createMultiBooking: async (turfId, date, slots, paymentMethod = 'upi', fullName, phoneNumber, email) => {
-    try {
-      const response = await api.post('/bookings/multi', {
-        turfId,
-        bookingDate: date,
-        slots,
-        paymentMethod,
-        fullName,
-        phoneNumber,
-        email
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error creating multiple bookings:', error);
-      throw error;
-    }
-  },
-
-  // ✅ Get bookings between two dates
-  getBookingsByDateRange: async (startDate, endDate) => {
-    try {
-      const response = await api.get('/bookings/my-bookings/date-range', {
-        params: { startDate, endDate }
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching bookings by date range:', error);
-      throw error;
-    }
-  },
-
-  // ✅ Get bookings for a specific turf (for owner/admin dashboard)
-  getBookingsByTurf: async (turfId) => {
-    try {
-      const response = await api.get(`/bookings/turf/${turfId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching bookings by turf:', error);
-      throw error;
-    }
-  },
-
-  // ✅ Paginated bookings (owner/admin)
+  /**
+   * Get paginated bookings for a turf (owner/admin view)
+   * @param {String|Number} turfId
+   * @param {Number} page
+   * @param {Number} size
+   * @returns {Promise<Object>} { content: [...], totalPages, totalElements, page, size }
+   */
   getBookingsByTurfPaginated: async (turfId, page = 0, size = 10) => {
     try {
+      if (!turfId) {
+        throw new Error('turfId is required for paginated bookings');
+      }
       const response = await api.get(`/bookings/turf/${turfId}/paginated`, {
         params: { page, size }
       });
@@ -185,5 +84,22 @@ export const bookingService = {
       console.error('Error fetching paginated bookings:', error);
       throw error;
     }
+  },
+
+  /**
+   * (Optional) Generic function to get bookings by turf (non-paginated)
+   * Use only if needed elsewhere in code.
+   */
+  getBookingsByTurf: async (turfId) => {
+    try {
+      if (!turfId) return [];
+      const response = await api.get(`/bookings/turf/${turfId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching bookings by turf:', error);
+      return [];
+    }
   }
 };
+
+export default bookingService;

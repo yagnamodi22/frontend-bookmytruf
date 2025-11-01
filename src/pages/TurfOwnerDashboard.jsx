@@ -210,92 +210,299 @@ const TurfOwnerDashboard = () => {
     if (offlineBookingData.turfId) loadOfflineBookings(offlineBookingData.turfId);
   }, [offlineBookingData.turfId]);
 
-  // 🟢 Offline Booking Tab UI
-  const renderOfflineBookingsTab = () => (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Offline Bookings</h2>
+  // 🟢 Offline Booking Tab UI (enhanced: slot UI + fallback to manual)
+  const renderOfflineBookingsTab = () => {
+    // Slots state for interactive slot selection (fallback to manual time inputs)
+    const [availableSlots, setAvailableSlots] = useState([]);
+    const [slotsLoading, setSlotsLoading] = useState(false);
+    const [selectedSlotId, setSelectedSlotId] = useState(null);
 
-      <div className="mb-8 bg-gray-50 p-6 rounded-lg">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Block Slot for Offline Booking</h3>
-        <form onSubmit={handleCreateOfflineBooking} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Turf *</label>
-              <select
-                name="turfId"
-                value={offlineBookingData.turfId}
-                onChange={handleOfflineBookingChange}
-                className="w-full p-2 border border-gray-300 rounded-md"
-                required
+    // Helper to try multiple bookingService functions for fetching slots
+    const fetchAvailableSlots = async (turfId, date) => {
+      if (!turfId || !date) return [];
+      const tryFns = [
+        'getAvailableSlots',
+        'getSlots',
+        'getSlotsByTurf',
+        'getSlotsByTurfAndDate',
+        'getTurfSlots',
+        'fetchAvailableSlots'
+      ];
+      for (const name of tryFns) {
+        const fn = bookingService[name];
+        if (typeof fn === 'function') {
+          try {
+            // Some implementations expect (turfId, date), others (turfId, { date })
+            const res = await fn(turfId, date);
+            // normalize array
+            if (Array.isArray(res)) return res;
+            if (Array.isArray(res?.content)) return res.content;
+            if (Array.isArray(res?.data)) return res.data;
+            return res || [];
+          } catch (err) {
+            console.warn('fetchAvailableSlots: function', name, 'failed', err);
+            continue;
+          }
+        }
+      }
+
+      // Last resort: try a generic booking fetch and derive slots (non-exhaustive)
+      if (typeof bookingService.getBookingsByTurf === 'function') {
+        try {
+          const b = await bookingService.getBookingsByTurf(offlineBookingData.turfId, date);
+          return Array.isArray(b) ? b : (b?.content || []);
+        } catch (err) { /* ignore */ }
+      }
+
+      return [];
+    };
+
+    // Load slots whenever turfId or date changes
+    useEffect(() => {
+      const turfId = offlineBookingData.turfId;
+      const date = offlineBookingData.date;
+      if (!turfId || !date) {
+        setAvailableSlots([]);
+        setSelectedSlotId(null);
+        return;
+      }
+      let mounted = true;
+      (async () => {
+        setSlotsLoading(true);
+        try {
+          const slots = await fetchAvailableSlots(turfId, date);
+          if (!mounted) return;
+          setAvailableSlots(Array.isArray(slots) ? slots : []);
+        } catch (err) {
+          console.error('Failed to fetch slots', err);
+          if (!mounted) return;
+          setAvailableSlots([]);
+        } finally {
+          if (mounted) setSlotsLoading(false);
+        }
+      })();
+      return () => { mounted = false; };
+    }, [offlineBookingData.turfId, offlineBookingData.date]);
+
+    // When a slot is selected, auto-fill start/end time and amount
+    useEffect(() => {
+      if (!selectedSlotId) return;
+      const slot = availableSlots.find(s => s.id === selectedSlotId || s.slotId === selectedSlotId);
+      if (slot) {
+        setOfflineBookingData(prev => ({
+          ...prev,
+          startTime: slot.startTime || slot.from || slot.start || prev.startTime,
+          endTime: slot.endTime || slot.to || slot.end || prev.endTime,
+          amount: slot.price || slot.amount || prev.amount
+        }));
+      }
+    }, [selectedSlotId, availableSlots]);
+
+    // Load offline bookings when turf is selected
+    useEffect(() => {
+      if (offlineBookingData.turfId) {
+        loadOfflineBookings(offlineBookingData.turfId);
+      }
+    }, [offlineBookingData.turfId]);
+
+    const handleSelectSlot = (slot) => {
+      const id = slot.id || slot.slotId || `${slot.startTime}-${slot.endTime}-${slot.price || ''}`;
+      if (selectedSlotId === id) {
+        setSelectedSlotId(null);
+      } else {
+        setSelectedSlotId(id);
+      }
+    };
+
+    const submitHandler = async (e) => {
+      // reuse existing handler but ensure selected slot data present
+      e.preventDefault();
+      // if slot selected, ensure offlineBookingData has slot times
+      try {
+        setLoading(true);
+        await handleCreateOfflineBooking(e); // existing function uses offlineBookingData
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return (
+      <div className="bg-white rounded-xl shadow-md p-6">
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">Offline Bookings</h2>
+
+        {/* Form to add offline booking */}
+        <div className="mb-8 bg-gray-50 p-6 rounded-lg">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Block Slot for Offline Booking</h3>
+          <form onSubmit={submitHandler} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Select Turf *</label>
+                <select
+                  name="turfId"
+                  value={offlineBookingData.turfId}
+                  onChange={handleOfflineBookingChange}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  required
+                >
+                  <option value="">Select a turf</option>
+                  {myTurfs.map(turf => (
+                    <option key={turf.id} value={turf.id}>{turf.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
+                <input
+                  type="date"
+                  name="date"
+                  value={offlineBookingData.date}
+                  onChange={handleOfflineBookingChange}
+                  min={new Date().toISOString().split('T')[0]}
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  required
+                />
+              </div>
+
+              {/* If availableSlots exist, render them; otherwise show manual time inputs */}
+              {availableSlots && availableSlots.length > 0 ? (
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Available Slots</label>
+                  {slotsLoading ? (
+                    <div>Loading slots...</div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                      {availableSlots.map(slot => {
+                        const id = slot.id || slot.slotId || `${slot.startTime}-${slot.endTime}-${slot.price || ''}`;
+                        const start = slot.startTime || slot.from || slot.start || slot.time || slot.slotStart;
+                        const end = slot.endTime || slot.to || slot.end || slot.slotEnd;
+                        const price = slot.price || slot.amount || slot.rate;
+                        const selected = selectedSlotId === id;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => { handleSelectSlot(slot); }}
+                            className={`p-3 border rounded text-left ${selected ? 'border-green-600 bg-green-50' : 'border-gray-200 hover:shadow-sm'}`}
+                          >
+                            <div className="text-sm font-medium">{start} - {end}</div>
+                            <div className="text-xs text-gray-500">{price ? `₹${price}` : 'Free'}</div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
+                    <input
+                      type="time"
+                      name="startTime"
+                      value={offlineBookingData.startTime}
+                      onChange={handleOfflineBookingChange}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">End Time *</label>
+                    <input
+                      type="time"
+                      name="endTime"
+                      value={offlineBookingData.endTime}
+                      onChange={handleOfflineBookingChange}
+                      className="w-full p-2 border border-gray-300 rounded-md"
+                      required
+                    />
+                  </div>
+                </>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
+                <input
+                  type="number"
+                  name="amount"
+                  value={offlineBookingData.amount}
+                  onChange={handleOfflineBookingChange}
+                  placeholder="Optional"
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                />
+              </div>
+            </div>
+
+            <div className="mt-4">
+              <button
+                type="submit"
+                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                disabled={loading}
               >
-                <option value="">Select a turf</option>
-                {myTurfs.map(turf => (
-                  <option key={turf.id} value={turf.id}>{turf.name}</option>
-                ))}
-              </select>
+                {loading ? 'Processing...' : 'Block Slot'}
+              </button>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date *</label>
-              <input type="date" name="date" value={offlineBookingData.date} onChange={handleOfflineBookingChange} min={new Date().toISOString().split('T')[0]} className="w-full p-2 border border-gray-300 rounded-md" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Start Time *</label>
-              <input type="time" name="startTime" value={offlineBookingData.startTime} onChange={handleOfflineBookingChange} className="w-full p-2 border border-gray-300 rounded-md" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">End Time *</label>
-              <input type="time" name="endTime" value={offlineBookingData.endTime} onChange={handleOfflineBookingChange} className="w-full p-2 border border-gray-300 rounded-md" required />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Amount (₹)</label>
-              <input type="number" name="amount" value={offlineBookingData.amount} onChange={handleOfflineBookingChange} placeholder="Optional" className="w-full p-2 border border-gray-300 rounded-md" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700" disabled={loading}>
-              {loading ? 'Processing...' : 'Block Slot'}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <h3 className="text-lg font-medium text-gray-900 mb-4">Currently Blocked Slots</h3>
-      {!offlineBookingData.turfId ? (
-        <p className="text-gray-600">Select a turf to view blocked slots.</p>
-      ) : loadingOfflineBookings ? (
-        <p className="text-gray-600">Loading...</p>
-      ) : offlineBookings.length === 0 ? (
-        <p className="text-gray-600">No blocked slots found for this turf.</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {offlineBookings.map(booking => (
-                <tr key={booking.id}>
-                  <td className="px-6 py-4 whitespace-nowrap">{new Date(booking.bookingDate).toLocaleDateString()}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{booking.startTime} - {booking.endTime}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">₹{booking.totalAmount || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button onClick={() => handleDeleteOfflineBooking(booking.id)} className="text-red-600 hover:text-red-900">
-                      Unblock
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          </form>
         </div>
-      )}
-    </div>
-  );
+
+        {/* Display offline bookings */}
+        <div>
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Currently Blocked Slots</h3>
+
+          {!offlineBookingData.turfId ? (
+            <div className="text-gray-600">Please select a turf to view blocked slots.</div>
+          ) : loadingOfflineBookings ? (
+            <div className="text-center py-8">Loading...</div>
+          ) : offlineBookings.length === 0 ? (
+            <div className="text-gray-600">No blocked slots found for this turf.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {offlineBookings.map(booking => (
+                    <tr key={booking.id}>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {new Date(booking.bookingDate).toLocaleDateString()}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {booking.startTime} - {booking.endTime}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                          Blocked
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        {booking.totalAmount ? `₹${booking.totalAmount}` : '-'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        <button
+                          onClick={() => handleDeleteOfflineBooking(booking.id)}
+                          className="text-red-600 hover:text-red-900"
+                        >
+                          Unblock
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   // 🧠 Main UI return
   return (

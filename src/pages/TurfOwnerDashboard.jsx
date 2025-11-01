@@ -24,20 +24,6 @@ const TurfOwnerDashboard = () => {
   });
   const [showOfflineBookingSection, setShowOfflineBookingSection] = useState(false);
 
-  // Load owner's turfs
-  const loadTurfs = async () => {
-    try {
-      const data = await bookingService.getOwnerTurfs();
-      setTurfs(data || []);
-    } catch (err) {
-      console.error("Failed to load turfs:", err);
-    }
-  };
-
-  useEffect(() => {
-    loadTurfs();
-  }, []);
-
   // Fix: handleProfileUpdate defined
   const handleProfileUpdate = (updatedProfile) => {
     setUserProfile({
@@ -54,7 +40,41 @@ const TurfOwnerDashboard = () => {
     });
   };
 
-  // ===== Offline Bookings Logic =====
+  // ===== Load Owner Turfs =====
+  const loadTurfs = async () => {
+    try {
+      setLoading(true);
+
+      // First try getOwnerTurfs (if exists)
+      if (bookingService.getOwnerTurfs) {
+        const data = await bookingService.getOwnerTurfs();
+        setTurfs(data || []);
+      }
+      // If not available, fallback to getAllTurfs + filter by logged-in owner
+      else if (bookingService.getAllTurfs) {
+        const user = authService.getCurrentUser();
+        const allTurfs = await bookingService.getAllTurfs();
+        const ownerTurfs = allTurfs.filter(
+          (t) => t.ownerId === user?.id || t.owner?._id === user?.id
+        );
+        setTurfs(ownerTurfs);
+      } else {
+        console.warn("No getOwnerTurfs or getAllTurfs method found.");
+        setTurfs([]);
+      }
+    } catch (err) {
+      console.error("Failed to load turfs:", err);
+      setTurfs([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadTurfs();
+  }, []);
+
+  // ===== Offline Booking Logic =====
   const loadOfflineBookings = async (turfId) => {
     if (!turfId) return;
     try {
@@ -103,10 +123,7 @@ const TurfOwnerDashboard = () => {
       });
     } catch (err) {
       console.error("Failed to create offline booking:", err);
-      alert(
-        err?.response?.data?.message ||
-          "Failed to block slot. Please try again."
-      );
+      alert("Failed to block slot. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -127,14 +144,12 @@ const TurfOwnerDashboard = () => {
     }
   };
 
-  // ===== Offline Booking Section =====
   const renderOfflineBookingSection = () => (
     <div className="bg-white rounded-xl shadow-md p-6 mt-6">
       <h2 className="text-xl font-semibold text-gray-900 mb-6">
         Offline Bookings for {turfs.find(t => t.id === offlineBookingData.turfId)?.name || "Selected Turf"}
       </h2>
 
-      {/* Add offline booking form */}
       <form onSubmit={handleCreateOfflineBooking} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
@@ -203,11 +218,8 @@ const TurfOwnerDashboard = () => {
         </button>
       </form>
 
-      {/* Display blocked slots */}
       <div className="mt-8">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">
-          Blocked Slots
-        </h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Blocked Slots</h3>
         {loading ? (
           <div>Loading...</div>
         ) : offlineBookings.length === 0 ? (
@@ -217,18 +229,10 @@ const TurfOwnerDashboard = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Action
-                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Action</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
@@ -261,49 +265,54 @@ const TurfOwnerDashboard = () => {
     </div>
   );
 
-  // ===== Dashboard UI =====
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-8">
         <h1 className="text-2xl font-semibold mb-6">Turf Owner Dashboard</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {turfs.map((turf) => (
-            <div
-              key={turf.id}
-              className="bg-white p-4 rounded-xl shadow hover:shadow-md transition"
-            >
-              <h3 className="text-lg font-semibold">{turf.name}</h3>
-              <p className="text-gray-600">{turf.location}</p>
+        {loading ? (
+          <p>Loading your turfs...</p>
+        ) : turfs.length === 0 ? (
+          <p className="text-gray-500">No turfs found.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {turfs.map((turf) => (
+              <div
+                key={turf.id}
+                className="bg-white p-4 rounded-xl shadow hover:shadow-md transition"
+              >
+                <h3 className="text-lg font-semibold">{turf.name}</h3>
+                <p className="text-gray-600">{turf.location}</p>
 
-              <div className="mt-4 flex flex-col gap-2">
-                <button
-                  onClick={() => {
-                    setViewTurfId(turf.id);
-                    setShowTurfDetailsModal(true);
-                  }}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  View Details
-                </button>
+                <div className="mt-4 flex flex-col gap-2">
+                  <button
+                    onClick={() => {
+                      setViewTurfId(turf.id);
+                      setShowTurfDetailsModal(true);
+                    }}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                  >
+                    View Details
+                  </button>
 
-                <button
-                  onClick={() => {
-                    setOfflineBookingData((prev) => ({
-                      ...prev,
-                      turfId: turf.id,
-                    }));
-                    setShowOfflineBookingSection(true);
-                    loadOfflineBookings(turf.id);
-                  }}
-                  className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                >
-                  Manage Offline Bookings
-                </button>
+                  <button
+                    onClick={() => {
+                      setOfflineBookingData((prev) => ({
+                        ...prev,
+                        turfId: turf.id,
+                      }));
+                      setShowOfflineBookingSection(true);
+                      loadOfflineBookings(turf.id);
+                    }}
+                    className="px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    Manage Offline Bookings
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
 
         {showOfflineBookingSection && renderOfflineBookingSection()}
       </div>

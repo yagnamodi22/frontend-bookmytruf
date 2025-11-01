@@ -1,301 +1,283 @@
-// src/pages/TurfOwnerDashboard.jsx
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Home,
-  ClipboardList,
-  BarChart2,
   Calendar,
+  BarChart2,
+  LogOut,
+  PlusCircle,
   MapPin,
   Star,
+  Trash2,
+  Edit,
   Users,
-  Clock,
-  PlusCircle,
-  Check,
 } from "lucide-react";
 import { turfService } from "../services/turfService";
 import { bookingService } from "../services/bookingService";
-import api from "../services/api";
+import { useNavigate } from "react-router-dom";
 
 const TurfOwnerDashboard = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("overview");
-  const [turfs, setTurfs] = useState([]);
-  const [selectedTurfId, setSelectedTurfId] = useState(null);
+  const [myTurfs, setMyTurfs] = useState([]);
+  const [stats, setStats] = useState(null);
   const [bookings, setBookings] = useState([]);
-  const [offlineDate, setOfflineDate] = useState("");
-  const [offlineBookedStarts, setOfflineBookedStarts] = useState([]);
-  const [offlineSelectedSlots, setOfflineSelectedSlots] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  // Load my turfs
+  // Fetch data for Overview and My Turfs
   useEffect(() => {
-    const fetchTurfs = async () => {
+    const fetchData = async () => {
       try {
-        const data = await turfService.getMyTurfs();
-        setTurfs(data);
-        if (data.length > 0) setSelectedTurfId(data[0].id);
-      } catch (err) {
-        console.error(err);
-        setError("Failed to load your turfs");
+        const [turfsData, statsData] = await Promise.all([
+          turfService.getMyTurfs(),
+          turfService.getMyTurfsStats(),
+        ]);
+        setMyTurfs(turfsData);
+        setStats(statsData);
+      } catch (error) {
+        console.error("Error loading data", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchTurfs();
+    fetchData();
   }, []);
 
-  // Load normal bookings (for Bookings tab)
+  // Fetch offline bookings
   useEffect(() => {
     const fetchBookings = async () => {
-      if (!selectedTurfId) return;
       try {
-        const data = await bookingService.getBookingsByTurf(selectedTurfId);
-        setBookings(data);
-      } catch (err) {
-        console.error(err);
+        const response = await bookingService.getAllBookings();
+        setBookings(response);
+      } catch (error) {
+        console.error("Failed to fetch bookings:", error);
       }
     };
     fetchBookings();
-  }, [selectedTurfId]);
+  }, []);
 
-  // For offline bookings: predefined time slots
-  const timeSlots = [
-    "06:00 - 07:00", "07:00 - 08:00", "08:00 - 09:00", "09:00 - 10:00",
-    "10:00 - 11:00", "11:00 - 12:00", "12:00 - 13:00", "13:00 - 14:00",
-    "14:00 - 15:00", "15:00 - 16:00", "16:00 - 17:00", "17:00 - 18:00",
-    "18:00 - 19:00", "19:00 - 20:00", "20:00 - 21:00", "21:00 - 22:00",
-    "22:00 - 23:00", "23:00 - 00:00", "00:00 - 01:00", "01:00 - 02:00",
-  ];
-
-  // Helper to parse slot to start/end times
-  const parseTimesFromSlot = (slot) => {
-    if (!slot || !slot.includes("-")) return { startTime: "", endTime: "" };
-    const [start, end] = slot.split("-").map((s) => s.trim());
-    return { startTime: start, endTime: end };
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/login");
   };
 
-  // Load booked slots for selected turf and date
-  useEffect(() => {
-    const loadOfflineBookings = async () => {
-      if (!offlineDate || !selectedTurfId) return;
-      try {
-        const booked = await bookingService.getOfflineBookings(selectedTurfId);
-        const forDate = booked.filter(
-          (b) => b.date === offlineDate || b.bookingDate === offlineDate
-        );
-        const starts = forDate.map((b) =>
-          (b.startTime || "").slice(0, 5)
-        );
-        setOfflineBookedStarts(starts);
-      } catch (err) {
-        console.error(err);
-        setOfflineBookedStarts([]);
-      }
-    };
-    loadOfflineBookings();
-  }, [offlineDate, selectedTurfId]);
-
-  // Toggle slot selection
-  const toggleOfflineSlot = (slot) => {
-    const { startTime } = parseTimesFromSlot(slot);
-    const startHHmm = startTime.slice(0, 5);
-    if (offlineBookedStarts.includes(startHHmm)) return;
-
-    setOfflineSelectedSlots((prev) =>
-      prev.includes(slot)
-        ? prev.filter((s) => s !== slot)
-        : [...prev, slot]
-    );
-  };
-
-  // Submit offline bookings
-  const handleOfflineBookingSubmit = async () => {
-    if (!offlineDate || offlineSelectedSlots.length === 0) {
-      alert("Please select a date and at least one slot.");
-      return;
-    }
-    try {
-      for (const slot of offlineSelectedSlots) {
-        const { startTime, endTime } = parseTimesFromSlot(slot);
-        await bookingService.createOfflineBooking({
-          turfId: selectedTurfId,
-          date: offlineDate,
-          startTime: `${startTime}:00`,
-          endTime: `${endTime}:00`,
-          amount: 0,
-        });
-      }
-      alert("Offline booking(s) added successfully!");
-      setOfflineSelectedSlots([]);
-      const booked = await bookingService.getOfflineBookings(selectedTurfId);
-      const forDate = booked.filter(
-        (b) => b.date === offlineDate || b.bookingDate === offlineDate
-      );
-      const starts = forDate.map((b) =>
-        (b.startTime || "").slice(0, 5)
-      );
-      setOfflineBookedStarts(starts);
-    } catch (err) {
-      console.error(err);
-      alert("Failed to add offline booking.");
-    }
-  };
-
-  const renderOfflineBookings = () => (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
-        <Calendar className="w-5 h-5 mr-2 text-green-600" />
-        Manage Offline Bookings
-      </h2>
-
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Turf
-        </label>
-        <select
-          value={selectedTurfId || ""}
-          onChange={(e) => setSelectedTurfId(Number(e.target.value))}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2"
-        >
-          {turfs.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <div className="mb-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Select Date
-        </label>
-        <input
-          type="date"
-          value={offlineDate}
-          min={new Date().toISOString().split("T")[0]}
-          onChange={(e) => setOfflineDate(e.target.value)}
-          className="w-full border border-gray-300 rounded-lg px-3 py-2"
-        />
-      </div>
-
-      {offlineDate && (
-        <>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Select Time Slot(s)
-            </label>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-              {timeSlots.map((slot) => {
-                const { startTime } = parseTimesFromSlot(slot);
-                const start = startTime.slice(0, 5);
-                const isBooked = offlineBookedStarts.includes(start);
-                const isSelected = offlineSelectedSlots.includes(slot);
-
-                return (
-                  <button
-                    key={slot}
-                    type="button"
-                    onClick={() => toggleOfflineSlot(slot)}
-                    disabled={isBooked}
-                    className={`px-2 py-2 text-sm rounded-lg border ${
-                      isBooked
-                        ? "bg-gray-200 text-gray-500 border-gray-300 cursor-not-allowed"
-                        : isSelected
-                        ? "bg-green-600 text-white border-green-600"
-                        : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
-                    }`}
-                  >
-                    {slot}
-                  </button>
-                );
-              })}
-            </div>
+  const renderOverview = () => (
+    <div className="p-6">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Dashboard Overview</h2>
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white shadow-md rounded-xl p-5 flex flex-col items-center text-center">
+            <Users className="text-green-600 w-8 h-8 mb-3" />
+            <p className="text-gray-600">Total Turfs</p>
+            <h3 className="text-2xl font-bold">{myTurfs.length}</h3>
           </div>
-
-          <div className="flex justify-end">
-            <button
-              onClick={handleOfflineBookingSubmit}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg flex items-center hover:bg-green-700"
-            >
-              <Check className="w-4 h-4 mr-2" />
-              Save Offline Bookings
-            </button>
+          <div className="bg-white shadow-md rounded-xl p-5 flex flex-col items-center text-center">
+            <Calendar className="text-green-600 w-8 h-8 mb-3" />
+            <p className="text-gray-600">Total Bookings</p>
+            <h3 className="text-2xl font-bold">{stats?.totalBookings || 0}</h3>
           </div>
-        </>
+          <div className="bg-white shadow-md rounded-xl p-5 flex flex-col items-center text-center">
+            <BarChart2 className="text-green-600 w-8 h-8 mb-3" />
+            <p className="text-gray-600">Total Revenue</p>
+            <h3 className="text-2xl font-bold">₹{stats?.totalRevenue || 0}</h3>
+          </div>
+        </div>
       )}
     </div>
   );
 
-  // Placeholder for your existing Overview/MyTurfs/Bookings/Analytics UI
-  const renderOverview = () => (
-    <div className="p-6 bg-white rounded-xl shadow-md text-center text-gray-700">
-      <h2 className="text-xl font-semibold mb-2">Overview</h2>
-      <p>This section remains unchanged (your original dashboard UI).</p>
+  const renderMyTurfs = () => (
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">My Turfs</h2>
+        <button
+          onClick={() => navigate("/add-turf")}
+          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+        >
+          <PlusCircle className="w-5 h-5 mr-2" /> Add New Turf
+        </button>
+      </div>
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {myTurfs.length === 0 ? (
+          <p>No turfs added yet.</p>
+        ) : (
+          myTurfs.map((turf) => (
+            <div
+              key={turf.id}
+              className="bg-white rounded-xl shadow-md overflow-hidden transition hover:shadow-lg"
+            >
+              <img
+                src={
+                  turf.images?.[0] ||
+                  "https://images.pexels.com/photos/274506/pexels-photo-274506.jpeg"
+                }
+                alt={turf.name}
+                className="w-full h-40 object-cover"
+              />
+              <div className="p-4">
+                <h3 className="text-lg font-bold text-gray-900 mb-1">
+                  {turf.name}
+                </h3>
+                <div className="flex items-center text-sm text-gray-600 mb-2">
+                  <MapPin className="w-4 h-4 mr-1" />
+                  {turf.location}
+                </div>
+                <div className="flex items-center text-sm text-yellow-500 mb-3">
+                  <Star className="w-4 h-4 mr-1" />
+                  {turf.rating || 4.8}
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="font-semibold text-green-600">
+                    ₹{turf.pricePerHour}/hr
+                  </span>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => navigate(`/edit-turf/${turf.id}`)}
+                      className="text-blue-600 hover:text-blue-800"
+                    >
+                      <Edit className="w-5 h-5" />
+                    </button>
+                    <button className="text-red-600 hover:text-red-800">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 
-  const renderBookings = () => (
-    <div className="p-6 bg-white rounded-xl shadow-md text-center text-gray-700">
-      <h2 className="text-xl font-semibold mb-2">Bookings</h2>
-      <p>Your normal bookings display here (unchanged).</p>
+  const renderOfflineBookings = () => (
+    <div className="p-6">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Offline Bookings</h2>
+      {bookings.length === 0 ? (
+        <p>No bookings yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="min-w-full bg-white border rounded-lg shadow-md">
+            <thead className="bg-green-600 text-white">
+              <tr>
+                <th className="px-4 py-3 text-left">Turf</th>
+                <th className="px-4 py-3 text-left">Date</th>
+                <th className="px-4 py-3 text-left">Slot</th>
+                <th className="px-4 py-3 text-left">Player</th>
+                <th className="px-4 py-3 text-left">Phone</th>
+                <th className="px-4 py-3 text-left">Payment</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bookings.map((b, i) => (
+                <tr key={i} className="border-t hover:bg-gray-50">
+                  <td className="px-4 py-3">{b.turfName}</td>
+                  <td className="px-4 py-3">{b.bookingDate}</td>
+                  <td className="px-4 py-3">
+                    {b.startTime?.slice(0, 5)} - {b.endTime?.slice(0, 5)}
+                  </td>
+                  <td className="px-4 py-3">{b.playerName}</td>
+                  <td className="px-4 py-3">{b.phoneNumber}</td>
+                  <td className="px-4 py-3 text-green-600 font-semibold">
+                    ₹{b.totalAmount}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 
   const renderAnalytics = () => (
-    <div className="p-6 bg-white rounded-xl shadow-md text-center text-gray-700">
-      <h2 className="text-xl font-semibold mb-2">Analytics</h2>
-      <p>Your analytics view remains unchanged.</p>
+    <div className="p-6">
+      <h2 className="text-2xl font-bold mb-6 text-gray-800">Analytics</h2>
+      {stats ? (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white shadow-md rounded-xl p-5 text-center">
+            <p className="text-gray-600">Total Revenue</p>
+            <h3 className="text-2xl font-bold text-green-600">
+              ₹{stats.totalRevenue || 0}
+            </h3>
+          </div>
+          <div className="bg-white shadow-md rounded-xl p-5 text-center">
+            <p className="text-gray-600">Total Bookings</p>
+            <h3 className="text-2xl font-bold text-blue-600">
+              {stats.totalBookings || 0}
+            </h3>
+          </div>
+          <div className="bg-white shadow-md rounded-xl p-5 text-center">
+            <p className="text-gray-600">Average Turf Rating</p>
+            <h3 className="text-2xl font-bold text-yellow-500">
+              {stats.averageRating || 4.8}
+            </h3>
+          </div>
+        </div>
+      ) : (
+        <p>Loading analytics...</p>
+      )}
     </div>
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white border-r min-h-screen p-4">
-          <h1 className="text-2xl font-bold text-green-600 mb-8 text-center">
-            Turf Owner
-          </h1>
-          <nav className="space-y-2">
-            {[
-              { id: "overview", label: "Overview", icon: Home },
-              { id: "myTurfs", label: "My Turfs", icon: MapPin },
-              { id: "bookings", label: "Bookings", icon: ClipboardList },
-              { id: "offlineBookings", label: "Offline Bookings", icon: Clock },
-              { id: "analytics", label: "Analytics", icon: BarChart2 },
-            ].map((item) => {
-              const Icon = item.icon;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveTab(item.id)}
-                  className={`flex items-center w-full px-4 py-2 rounded-lg text-left transition-colors ${
-                    activeTab === item.id
-                      ? "bg-green-100 text-green-700 font-semibold"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
-                >
-                  <Icon className="w-5 h-5 mr-3" />
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
+    <div className="min-h-screen flex bg-gray-100">
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r shadow-md fixed h-full">
+        <div className="p-6 border-b">
+          <h1 className="text-2xl font-bold text-green-600">Turf Owner</h1>
         </div>
+        <nav className="mt-6">
+          <button
+            onClick={() => setActiveTab("overview")}
+            className={`w-full flex items-center px-6 py-3 text-left hover:bg-green-50 ${
+              activeTab === "overview" ? "bg-green-100 text-green-700" : ""
+            }`}
+          >
+            <Home className="w-5 h-5 mr-3" /> Overview
+          </button>
+          <button
+            onClick={() => setActiveTab("myTurfs")}
+            className={`w-full flex items-center px-6 py-3 text-left hover:bg-green-50 ${
+              activeTab === "myTurfs" ? "bg-green-100 text-green-700" : ""
+            }`}
+          >
+            <MapPin className="w-5 h-5 mr-3" /> My Turfs
+          </button>
+          <button
+            onClick={() => setActiveTab("offlineBookings")}
+            className={`w-full flex items-center px-6 py-3 text-left hover:bg-green-50 ${
+              activeTab === "offlineBookings" ? "bg-green-100 text-green-700" : ""
+            }`}
+          >
+            <Calendar className="w-5 h-5 mr-3" /> Offline Bookings
+          </button>
+          <button
+            onClick={() => setActiveTab("analytics")}
+            className={`w-full flex items-center px-6 py-3 text-left hover:bg-green-50 ${
+              activeTab === "analytics" ? "bg-green-100 text-green-700" : ""
+            }`}
+          >
+            <BarChart2 className="w-5 h-5 mr-3" /> Analytics
+          </button>
+        </nav>
+        <div className="absolute bottom-0 w-full border-t">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center px-6 py-3 text-left text-red-600 hover:bg-red-50"
+          >
+            <LogOut className="w-5 h-5 mr-3" /> Logout
+          </button>
+        </div>
+      </div>
 
-        {/* Main content */}
-        <div className="flex-1 p-8">
-          {activeTab === "overview" && renderOverview()}
-          {activeTab === "myTurfs" && (
-            <div className="p-6 bg-white rounded-xl shadow-md">
-              <h2 className="text-xl font-semibold mb-4">My Turfs</h2>
-              <p>This section uses your original code (unchanged).</p>
-            </div>
-          )}
-          {activeTab === "bookings" && renderBookings()}
-          {activeTab === "offlineBookings" && renderOfflineBookings()}
-          {activeTab === "analytics" && renderAnalytics()}
-        </div>
+      {/* Main Content */}
+      <div className="flex-1 ml-64">
+        {activeTab === "overview" && renderOverview()}
+        {activeTab === "myTurfs" && renderMyTurfs()}
+        {activeTab === "offlineBookings" && renderOfflineBookings()}
+        {activeTab === "analytics" && renderAnalytics()}
       </div>
     </div>
   );
